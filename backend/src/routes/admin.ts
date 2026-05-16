@@ -3,7 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { one, query, tx } from '../db/pool.js';
-import { asyncHandler, BadRequest, NotFound, Conflict } from '../middleware/errors.js';
+import { asyncHandler, BadRequest, NotFound, Conflict, Forbidden } from '../middleware/errors.js';
 import { requireAuth, requireSiteAdmin } from '../middleware/auth.js';
 import { getAllSettings, getSetting, setSetting, KNOWN_SETTINGS } from '../services/settings.js';
 import { config } from '../config.js';
@@ -174,16 +174,14 @@ router.delete('/users/:userId', asyncHandler(async (req, res) => {
   if (req.params.userId === req.session.userId) {
     throw new Conflict('Use a different admin account to delete yourself');
   }
-  // Safety: can't delete the last site admin
   const target = await one<{ is_site_admin: boolean }>(
     'SELECT is_site_admin FROM users WHERE id = $1', [req.params.userId],
   );
   if (!target) throw new NotFound();
+  // A site admin may only delete normal users. Deleting another site-admin
+  // account is never permitted (self-deletion is already blocked above).
   if (target.is_site_admin) {
-    const { count } = (await one<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM users WHERE is_site_admin = true`,
-    ))!;
-    if (parseInt(count, 10) <= 1) throw new Conflict('Cannot delete the last site admin');
+    throw new Forbidden('Cannot delete another site admin account');
   }
 
   await query('DELETE FROM users WHERE id = $1', [req.params.userId]);
