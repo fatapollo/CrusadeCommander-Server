@@ -66,6 +66,11 @@ export function parseNewRecruitText(input: string): ParsedRoster {
     const line = raw.trim();
     if (!line) continue;
 
+    // ── Keyword/role tags (e.g. "# Battleline", "# Character",
+    // "# Epic Hero") — NewRecruit emits these prefixed with '#'. They are
+    // not units or equipment, so drop them entirely.
+    if (line.startsWith('#')) continue;
+
     // ── Header rows (faction, detachment, section, total) ─────────────
     if (line.startsWith('+')) {
       flush();

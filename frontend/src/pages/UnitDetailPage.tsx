@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { unitsApi, requisitionsApi } from '../api/endpoints';
 import { BATTLE_SCARS, BATTLE_SCAR_DESCRIPTIONS, rankForXP, maxBattleHonours } from '../types';
@@ -18,7 +18,16 @@ const RANK_THRESHOLDS = [
 export default function UnitDetailPage() {
   const { campaignId, unitId } = useParams<{ campaignId: string; unitId: string }>();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+
+  const deleteM = useMutation({
+    mutationFn: () => unitsApi.remove(campaignId!, unitId!),
+    onSuccess: (_data, _vars, _ctx) => {
+      qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'force'] });
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'Failed to delete unit'),
+  });
 
   const q = useQuery({
     queryKey: ['campaign', campaignId, 'unit', unitId],
@@ -56,8 +65,21 @@ export default function UnitDetailPage() {
             <div className="text-sm text-ink-dim mt-1">{unit.datasheet} · {unit.points_cost} pts</div>
             {unit.equipment && <div className="text-xs text-ink-fade mt-1">{unit.equipment}</div>}
           </div>
-          <div className="text-right flex-shrink-0">
+          <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
             <Badge color="accent">{rank}</Badge>
+            <button
+              onClick={async () => {
+                if (!confirm(`Permanently delete "${unit.name}" from the Order of Battle? This cannot be undone.`)) return;
+                try {
+                  await deleteM.mutateAsync();
+                  navigate(`/campaigns/${campaignId}/forces/${unit.force_id}`);
+                } catch { /* error surfaced via mutation onError */ }
+              }}
+              disabled={deleteM.isPending}
+              className="text-xs text-ink-fade hover:text-danger disabled:opacity-50"
+            >
+              {deleteM.isPending ? 'Deleting…' : 'Delete unit'}
+            </button>
           </div>
         </div>
 
