@@ -2,30 +2,24 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Full Stack (one-command, docker compose)",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd 'CrusadeCommander Server' && docker compose up --build"],
-      "port": 3000,
+      "name": "Frontend (Vite dev, proxies /api to :3000)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 5173,
       "autoPort": true
     },
     {
-      "name": "Postgres only (for local dev)",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd 'CrusadeCommander Server' && docker compose up db"],
-      "port": 5432
+      "name": "Full Stack (docker compose)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build"],
+      "port": 3000,
+      "autoPort": false
     },
     {
       "name": "API (dev — tsx watch)",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "CrusadeCommander Server/backend", "run", "dev"],
+      "runtimeArgs": ["--prefix", "backend", "run", "dev"],
       "port": 3000,
-      "autoPort": true
-    },
-    {
-      "name": "Web (Vite dev)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "CrusadeCommander Server/frontend", "run", "dev"],
-      "port": 5173,
       "autoPort": true
     }
   ]

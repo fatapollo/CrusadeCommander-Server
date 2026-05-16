@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { battlesApi, campaignsApi, forcesApi } from '../api/endpoints';
-import { Badge, Button, Card, EmptyState, Spinner } from '../components/ui';
+import { Button, Card, EmptyState, Spinner } from '../components/ui';
+import { BunkPage, BunkPill, BunkStatus } from '../components/bunker';
+import { SigilHazard } from '../components/sigils';
 import { ApiError } from '../api/client';
 import OverviewTab from './tabs/OverviewTab';
 import ForcesTab from './tabs/ForcesTab';
@@ -38,10 +40,12 @@ export default function DashboardPage() {
     queryFn: () => battlesApi.list(campaignId!), enabled: !!campaignId,
   });
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) return <BunkPage active="01"><Spinner /></BunkPage>;
   if (error || !data) return (
-    <EmptyState icon="✕" title="Campaign not found"
-      action={<Button onClick={() => navigate('/campaigns')}>Back</Button>} />
+    <BunkPage active="01">
+      <EmptyState icon="✕" title="Campaign not found"
+        action={<Button onClick={() => navigate('/campaigns')}>Back</Button>} />
+    </BunkPage>
   );
 
   const c = data.campaign;
@@ -51,31 +55,41 @@ export default function DashboardPage() {
   const isAdmin = role === 'owner' || role === 'admin';
   const activeForces = forces.filter(f => f.is_active);
 
+  const stateStatus: BunkStatus = c.state === 'setup' ? 'NEW' : c.state === 'active' ? 'ACTIVE' : 'ARCHIVED';
+
   return (
-    <>
-      <div className="mb-4">
-        <Link to="/campaigns" className="text-xs text-ink-fade hover:text-ink-dim">← Campaigns</Link>
-        <h1 className="text-2xl font-bold mt-1">{c.name}</h1>
-        {c.description && <p className="text-sm text-ink-dim mt-1 max-w-2xl">{c.description}</p>}
-        <div className="flex gap-3 text-xs text-ink-fade mt-2 flex-wrap items-center">
-          <Badge>{c.default_battle_size}</Badge>
-          <span>{c.phase_label} {c.current_phase}</span>
-          <Badge color={c.state === 'setup' ? 'warning' : c.state === 'active' ? 'success' : 'dim'}>
-            {c.state === 'setup' ? 'In Setup' : c.state === 'active' ? 'Active' : 'Concluded'}
-          </Badge>
-          <Badge color={role === 'owner' ? 'accent' : role === 'admin' ? 'warning' : 'dim'}>You are {role}</Badge>
+    <BunkPage active="01">
+      {/* Hero */}
+      <div className="relative overflow-hidden border border-bunk-line bg-bunk-surface mb-6">
+        <SigilHazard height={8} color="#e2683c" bg="#06040a" />
+        <div className="p-6">
+          <Link to="/campaigns" className="font-mono text-[10px] tracking-mono-lg text-bunk-rust hover:text-bunk-bone">
+            ‹ OPERATIONS // ALL CRUSADES
+          </Link>
+          <div className="flex items-center gap-3 flex-wrap mt-3">
+            <h1 className="font-display text-5xl font-bold uppercase tracking-tight text-bunk-bone leading-none">
+              {c.name}
+            </h1>
+            <BunkPill status={stateStatus} />
+          </div>
+          {c.description && <p className="text-sm text-bunk-boneDim mt-3 max-w-2xl">{c.description}</p>}
+          <div className="flex gap-3 font-mono text-[10px] tracking-mono-md text-bunk-boneDim mt-3 flex-wrap items-center uppercase">
+            <span className="text-bunk-rust">{c.default_battle_size}</span>
+            <span>· {c.phase_label} {c.current_phase}</span>
+            <span>· YOU ARE {role}</span>
+          </div>
         </div>
       </div>
 
       <LifecycleBanner campaign={c} isAdmin={isAdmin} activeForceCount={activeForces.length} />
 
-      <div className="flex gap-1 mb-6 border-b border-white/5 overflow-x-auto">
+      <div className="flex gap-0 mb-6 border-b border-bunk-line overflow-x-auto">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              tab === t.key ? 'text-accent border-accent' : 'text-ink-dim border-transparent hover:text-ink'
+            className={`px-5 py-2.5 font-display text-[13px] font-bold tracking-[2px] uppercase whitespace-nowrap border-b-2 transition-colors ${
+              tab === t.key ? 'text-bunk-rust border-bunk-rust' : 'text-bunk-boneDim border-transparent hover:text-bunk-bone'
             }`}>
-            <span className="mr-1.5">{t.icon}</span>{t.label}
+            {t.label}
           </button>
         ))}
       </div>
@@ -88,7 +102,7 @@ export default function DashboardPage() {
           currentUserId={user!.id} currentRole={role} campaignState={c.state} />
       )}
       {tab === 'members' && <MembersTab campaignId={c.id} currentRole={role} currentUserId={user!.id} />}
-    </>
+    </BunkPage>
   );
 }
 
@@ -116,35 +130,35 @@ function LifecycleBanner({ campaign: c, isAdmin, activeForceCount }: {
   if (c.state === 'setup') {
     const ready = activeForceCount >= 2;
     return (
-      <Card className="p-4 mb-6 bg-warning/5 border-warning/30">
+      <Card className="p-4 mb-6 border-bunk-warning/40" >
         <div className="flex items-start gap-3 flex-wrap">
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-warning">Campaign in setup</div>
-            <p className="text-xs text-ink-dim mt-1">
+            <div className="font-display font-bold uppercase tracking-wide text-bunk-warning">Campaign in setup</div>
+            <p className="text-xs text-bunk-boneDim mt-1">
               Invite players via the Members tab and create Crusade Forces. Battles cannot be recorded until the campaign is started.
             </p>
-            <p className="text-xs text-ink-fade mt-1">
+            <p className="font-mono text-[10px] tracking-mono-sm text-bunk-boneDim mt-1 uppercase">
               {activeForceCount} active force{activeForceCount === 1 ? '' : 's'} — {ready ? 'ready to start' : 'need at least 2'}.
             </p>
           </div>
           {isAdmin && (
             <Button onClick={() => startM.mutate()} disabled={!ready || startM.isPending}>
-              {startM.isPending ? '…' : '⚔ Start Campaign'}
+              {startM.isPending ? '…' : 'Start Campaign'}
             </Button>
           )}
         </div>
-        {error && <p className="text-xs text-danger mt-2">{error}</p>}
+        {error && <p className="font-mono text-[10px] text-bunk-red mt-2">{error}</p>}
       </Card>
     );
   }
 
   if (c.state === 'concluded') {
     return (
-      <Card className="p-4 mb-6 bg-bg-elevated">
+      <Card className="p-4 mb-6 bg-bunk-surfaceLo">
         <div className="flex items-start gap-3 flex-wrap">
           <div className="flex-1">
-            <div className="font-semibold text-ink-dim">Campaign concluded</div>
-            <p className="text-xs text-ink-fade mt-1">
+            <div className="font-display font-bold uppercase tracking-wide text-bunk-boneDim">Campaign concluded</div>
+            <p className="text-xs text-bunk-boneMute mt-1">
               {c.concluded_at && `Ended ${new Date(c.concluded_at).toLocaleDateString()}. `}
               No new battles can be recorded.
             </p>
@@ -155,26 +169,26 @@ function LifecycleBanner({ campaign: c, isAdmin, activeForceCount }: {
             </Button>
           )}
         </div>
-        {error && <p className="text-xs text-danger mt-2">{error}</p>}
+        {error && <p className="font-mono text-[10px] text-bunk-red mt-2">{error}</p>}
       </Card>
     );
   }
 
   if (c.state === 'active' && isAdmin) {
     return (
-      <Card className="p-3 mb-6 bg-bg-card border-white/5">
-        <div className="flex items-center gap-3 flex-wrap text-xs">
-          <span className="text-success font-medium">✓ Campaign active</span>
-          <span className="text-ink-fade">{activeForceCount} active force{activeForceCount === 1 ? '' : 's'}</span>
-          {c.started_at && <span className="text-ink-fade">started {new Date(c.started_at).toLocaleDateString()}</span>}
+      <Card className="p-3 mb-6">
+        <div className="flex items-center gap-3 flex-wrap font-mono text-[10px] tracking-mono-sm uppercase">
+          <span className="text-bunk-green">● Campaign active</span>
+          <span className="text-bunk-boneDim">{activeForceCount} active force{activeForceCount === 1 ? '' : 's'}</span>
+          {c.started_at && <span className="text-bunk-boneDim">started {new Date(c.started_at).toLocaleDateString()}</span>}
           <div className="flex-1" />
           <button
             onClick={() => confirm('Conclude this campaign? No more battles can be recorded.') && concludeM.mutate()}
-            className="text-ink-fade hover:text-danger"
+            className="text-bunk-boneDim hover:text-bunk-red"
             disabled={concludeM.isPending}
           >Conclude</button>
         </div>
-        {error && <p className="text-xs text-danger mt-2">{error}</p>}
+        {error && <p className="font-mono text-[10px] text-bunk-red mt-2">{error}</p>}
       </Card>
     );
   }

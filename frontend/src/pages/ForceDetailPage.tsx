@@ -5,6 +5,7 @@ import { forcesApi, unitsApi, requisitionsApi } from '../api/endpoints';
 import type { Unit } from '../types';
 import { rankForXP } from '../types';
 import { Badge, Button, Card, EmptyState, Field, Spinner } from '../components/ui';
+import { BunkPage } from '../components/bunker';
 import { ApiError } from '../api/client';
 
 export default function ForceDetailPage() {
@@ -25,32 +26,32 @@ export default function ForceDetailPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  if (forceQ.isLoading || unitsQ.isLoading) return <Spinner />;
-  if (!forceQ.data) return <EmptyState icon="✕" title="Force not found" />;
+  if (forceQ.isLoading || unitsQ.isLoading) return <BunkPage active="02"><Spinner /></BunkPage>;
+  if (!forceQ.data) return <BunkPage active="02"><EmptyState icon="✕" title="Force not found" /></BunkPage>;
 
   const force = forceQ.data.force;
   const units = unitsQ.data?.units ?? [];
   const supplyUsed = units.filter(u => u.is_active).reduce((s, u) => s + u.points_cost, 0);
 
   return (
-    <>
+    <BunkPage active="02">
       <div className="mb-6">
-        <Link to={`/campaigns/${campaignId}`} className="text-xs text-ink-fade hover:text-ink-dim">← Campaign</Link>
-        <div className="flex items-center gap-3 mt-1">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: force.color_hex }}>
+        <Link to={`/campaigns/${campaignId}`} className="font-mono text-[10px] tracking-mono-lg text-bunk-rust hover:text-bunk-bone">‹ CAMPAIGN</Link>
+        <div className="flex items-center gap-3 mt-2">
+          <div className="w-12 h-12 flex items-center justify-center font-display font-bold text-2xl text-bunk-ink" style={{ backgroundColor: force.color_hex }}>
             {force.name[0]?.toUpperCase()}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold">{force.name}</h1>
+              <h1 className="font-display text-4xl font-bold uppercase tracking-tight text-bunk-bone leading-none">{force.name}</h1>
               {force.team && <Badge color="accent">{force.team}</Badge>}
             </div>
-            <div className="text-sm text-ink-dim">{force.faction || 'Unknown faction'}{force.player_name && ` · ${force.player_name}`}</div>
+            <div className="font-mono text-[11px] tracking-mono-sm text-bunk-boneDim mt-1 uppercase">{force.faction || 'Unknown faction'}{force.player_name && ` · ${force.player_name}`}</div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px mb-6" style={{ background: '#2e251e' }}>
         <Stat label="Supply" value={`${supplyUsed} / ${force.supply_limit}`} sub={`${force.supply_limit - supplyUsed} free`} />
         <Stat label="Requisition Points" value={`${force.requisition_points} / 10`} accent />
         <Stat label="Battle Tally" value={force.battle_tally.toString()} />
@@ -58,7 +59,7 @@ export default function ForceDetailPage() {
       </div>
 
       <div className="flex justify-between items-center mb-3 mt-6">
-        <h2 className="text-lg font-semibold">Order of Battle</h2>
+        <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-bunk-bone">Order of Battle</h2>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setShowImport(true)}>Import from NewRecruit</Button>
           <Button onClick={() => setShowAdd(s => !s)}>{showAdd ? 'Close' : '+ Add Unit'}</Button>
@@ -90,17 +91,17 @@ export default function ForceDetailPage() {
           ))}
         </div>
       )}
-    </>
+    </BunkPage>
   );
 }
 
 function Stat({ label, value, sub, color = '', accent = false }: { label: string; value: string; sub?: string; color?: string; accent?: boolean }) {
   return (
-    <Card className="p-3 text-center">
-      <div className={`text-xl font-bold tabular-nums ${color} ${accent ? 'text-accent' : ''}`}>{value}</div>
-      <div className="text-xs text-ink-fade mt-0.5">{label}</div>
-      {sub && <div className="text-[10px] text-ink-fade">{sub}</div>}
-    </Card>
+    <div className="bg-bunk-surface p-3 text-center">
+      <div className={`font-display text-2xl font-bold tabular-nums ${color} ${accent ? 'text-bunk-rust' : 'text-bunk-bone'}`}>{value}</div>
+      <div className="font-mono text-[9px] tracking-mono-md text-bunk-boneDim mt-1 uppercase">{label}</div>
+      {sub && <div className="font-mono text-[9px] text-bunk-boneMute uppercase">{sub}</div>}
+    </div>
   );
 }
 

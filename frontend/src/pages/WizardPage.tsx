@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { campaignsApi } from '../api/endpoints';
 import { Button, Card, Field, PageHeader, Badge } from '../components/ui';
+import { BunkPage } from '../components/bunker';
 import type { BattleSize } from '../types';
 import { BATTLE_SIZE_POINTS } from '../types';
 import { ApiError } from '../api/client';
@@ -30,8 +31,8 @@ export default function WizardPage() {
   });
 
   return (
-    <>
-      <PageHeader title="New Crusade" subtitle="Set up the campaign. You'll invite players and build forces next." />
+    <BunkPage active="01" width="max-w-2xl">
+      <PageHeader title="New Crusade" subtitle="Set up the campaign — invite players and build forces next." />
 
       <Card className="p-6 mb-6 space-y-4">
         <Field label="Campaign Name">
@@ -41,14 +42,14 @@ export default function WizardPage() {
           <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)} />
         </Field>
         <Field label="Default Battle Size" hint={`${BATTLE_SIZE_POINTS[battleSize]} points per army`}>
-          <div className="flex gap-2">
+          <div className="flex gap-px" style={{ background: '#2e251e' }}>
             {BATTLE_SIZES.map(bs => (
               <button key={bs} type="button" onClick={() => setBattleSize(bs)}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${
-                  battleSize === bs ? 'bg-accent text-white' : 'bg-bg-elevated text-ink-dim hover:text-ink'
+                className={`flex-1 py-2 px-3 font-display font-bold tracking-[1px] uppercase transition ${
+                  battleSize === bs ? 'bg-bunk-rust text-bunk-ink' : 'bg-bunk-ink text-bunk-boneDim hover:text-bunk-bone'
                 }`}>
-                <div>{bs}</div>
-                <div className="text-xs opacity-75">{BATTLE_SIZE_POINTS[bs]} pts</div>
+                <div className="text-sm">{bs}</div>
+                <div className="font-mono text-[10px] opacity-75">{BATTLE_SIZE_POINTS[bs]} PTS</div>
               </button>
             ))}
           </div>
@@ -56,9 +57,9 @@ export default function WizardPage() {
         <Field label="Phase Label"><input value={phaseLabel} onChange={e => setPhaseLabel(e.target.value)} /></Field>
       </Card>
 
-      <Card className="p-5 mb-6 bg-bg-elevated">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-fade mb-2">What happens next</h4>
-        <ol className="text-xs text-ink-dim space-y-1 list-decimal pl-4">
+      <Card className="p-5 mb-6 bg-bunk-surfaceLo">
+        <h4 className="font-mono text-[9px] tracking-mono-lg uppercase text-bunk-rust mb-3">// What happens next</h4>
+        <ol className="text-xs text-bunk-boneDim space-y-1 list-decimal pl-4">
           <li>Campaign is created in <Badge color="warning">setup</Badge> state — no battles allowed yet.</li>
           <li>Invite players via the <strong>Members</strong> tab.</li>
           <li>Each player creates a Crusade Force (1000-pt Supply, 5 RP starting).</li>
@@ -67,7 +68,7 @@ export default function WizardPage() {
         </ol>
       </Card>
 
-      {error && <p className="text-sm text-danger mb-3">{error}</p>}
+      {error && <p className="font-mono text-[11px] text-bunk-red mb-3">{error}</p>}
 
       <div className="flex gap-3">
         <Button variant="secondary" onClick={() => navigate('/campaigns')} className="flex-1">Cancel</Button>
@@ -77,6 +78,6 @@ export default function WizardPage() {
           {launchMutation.isPending ? '…' : 'Create Crusade'}
         </Button>
       </div>
-    </>
+    </BunkPage>
   );
 }

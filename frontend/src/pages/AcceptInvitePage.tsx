@@ -4,6 +4,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { invitesApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Card, Badge, Spinner } from '../components/ui';
+import { BunkShell } from '../components/bunker';
+import { SigilHazard } from '../components/sigils';
 import { ApiError } from '../api/client';
 
 export default function AcceptInvitePage() {
@@ -37,41 +39,48 @@ export default function AcceptInvitePage() {
   if (previewQ.isLoading) return <Spinner />;
   if (previewQ.error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="p-6 max-w-md text-center">
-          <h2 className="text-lg font-semibold mb-2">Invite Unavailable</h2>
-          <p className="text-sm text-ink-fade mb-4">
-            {previewQ.error instanceof ApiError ? previewQ.error.message : 'This invite is invalid or has expired.'}
-          </p>
-          <Button variant="secondary" onClick={() => navigate('/campaigns')}>Back to Campaigns</Button>
-        </Card>
-      </div>
+      <BunkShell>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="p-6 max-w-md text-center">
+            <h2 className="font-display text-xl font-bold uppercase tracking-wide text-bunk-bone mb-2">Invite Unavailable</h2>
+            <p className="text-sm text-bunk-boneDim mb-4">
+              {previewQ.error instanceof ApiError ? previewQ.error.message : 'This invite is invalid or has expired.'}
+            </p>
+            <Button variant="secondary" onClick={() => navigate('/campaigns')}>Back to Campaigns</Button>
+          </Card>
+        </div>
+      </BunkShell>
     );
   }
 
   const info = previewQ.data!;
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="p-8 max-w-md w-full">
-        <div className="text-xs text-ink-fade uppercase tracking-wider mb-2">Crusade Invitation</div>
-        <h1 className="text-2xl font-bold mb-1">{info.campaign.name}</h1>
-        {info.campaign.description && <p className="text-sm text-ink-dim mb-4">{info.campaign.description}</p>}
+    <BunkShell>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <SigilHazard height={8} color="#e2683c" bg="#161310" />
+          <div className="p-8">
+            <div className="font-mono text-[10px] text-bunk-rust uppercase tracking-mono-lg mb-2">// Crusade Invitation</div>
+            <h1 className="font-display text-3xl font-bold uppercase tracking-tight text-bunk-bone mb-1">{info.campaign.name}</h1>
+            {info.campaign.description && <p className="text-sm text-bunk-boneDim mb-4">{info.campaign.description}</p>}
 
-        <div className="space-y-2 my-6 text-sm">
-          <div className="flex justify-between"><span className="text-ink-fade">Code</span><code className="text-accent font-mono">{code}</code></div>
-          <div className="flex justify-between"><span className="text-ink-fade">Joining as</span><Badge>{info.role}</Badge></div>
-          {info.label && <div className="flex justify-between"><span className="text-ink-fade">From</span><span>{info.label}</span></div>}
-          <div className="flex justify-between"><span className="text-ink-fade">Uses left</span><span>{info.remaining_uses}</span></div>
-        </div>
+            <div className="space-y-2 my-6 font-mono text-[11px] tracking-mono-sm">
+              <div className="flex justify-between"><span className="text-bunk-boneDim">CODE</span><code className="text-bunk-rust">{code}</code></div>
+              <div className="flex justify-between items-center"><span className="text-bunk-boneDim">JOINING AS</span><Badge>{info.role}</Badge></div>
+              {info.label && <div className="flex justify-between"><span className="text-bunk-boneDim">FROM</span><span className="text-bunk-bone">{info.label}</span></div>}
+              <div className="flex justify-between"><span className="text-bunk-boneDim">USES LEFT</span><span className="text-bunk-bone">{info.remaining_uses}</span></div>
+            </div>
 
-        {error && <p className="text-sm text-danger mb-3">{error}</p>}
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => navigate('/campaigns')} className="flex-1">Decline</Button>
-          <Button onClick={() => acceptM.mutate()} disabled={acceptM.isPending} className="flex-1">
-            {acceptM.isPending ? '…' : 'Join Crusade'}
-          </Button>
-        </div>
-      </Card>
-    </div>
+            {error && <p className="font-mono text-[11px] text-bunk-red mb-3">{error}</p>}
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => navigate('/campaigns')} className="flex-1">Decline</Button>
+              <Button onClick={() => acceptM.mutate()} disabled={acceptM.isPending} className="flex-1">
+                {acceptM.isPending ? '…' : 'Join Crusade'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </BunkShell>
   );
 }

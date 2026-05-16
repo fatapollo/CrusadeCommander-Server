@@ -4,35 +4,52 @@
 
 html, body, #root { min-height: 100vh; }
 body {
-  background: radial-gradient(ellipse at top, #161619 0%, #0a0a0d 60%);
+  background: #0c0a08;
+  color: #d8c8a8;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Bunker form controls — square, ink fill, rust underline + focus. */
 input, select, textarea {
-  background-color: #1f1f24;
-  color: #e8e6e3;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  background-color: #06040a;
+  color: #d8c8a8;
+  border: 1px solid #2e251e;
+  border-bottom: 2px solid #e2683c;
+  border-radius: 0;
+  padding: 0.625rem 0.875rem;
   outline: none;
   transition: border-color 0.15s;
   width: 100%;
+  font-family: 'Oswald', sans-serif;
+  letter-spacing: 0.02em;
 }
-input:focus, select:focus, textarea:focus { border-color: #d97706; }
-input[type="checkbox"] { width: auto; }
+input::placeholder, textarea::placeholder { color: #5c5346; }
+input:focus, select:focus, textarea:focus { border-color: #e2683c; }
+input[type="checkbox"], input[type="radio"] { width: auto; accent-color: #e2683c; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-thumb { background: #2e251e; border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: #4a3a2d; }
 
-input[type="range"] { padding: 0; background: transparent; border: none; -webkit-appearance: none; }
-input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: #1f1f24; border-radius: 3px; }
+input[type="range"] {
+  padding: 0;
+  background: transparent;
+  border: none;
+  -webkit-appearance: none;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: #161310;
+  border: 1px solid #2e251e;
+}
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px; height: 18px;
-  background: #d97706;
-  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  background: #e2683c;
+  border-radius: 0;
   margin-top: -6px;
   cursor: pointer;
 }

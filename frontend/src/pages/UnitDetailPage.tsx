@@ -5,6 +5,7 @@ import { unitsApi, requisitionsApi } from '../api/endpoints';
 import { BATTLE_SCARS, BATTLE_SCAR_DESCRIPTIONS, rankForXP, maxBattleHonours } from '../types';
 import type { HonourCategory, RelicCategory, BattleScarName } from '../types';
 import { Badge, Button, Card, Field, Spinner } from '../components/ui';
+import { BunkPage } from '../components/bunker';
 import { ApiError } from '../api/client';
 
 const RANK_THRESHOLDS = [
@@ -40,8 +41,8 @@ export default function UnitDetailPage() {
     qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'force'] });
   };
 
-  if (q.isLoading) return <Spinner />;
-  if (!q.data) return <div>Unit not found</div>;
+  if (q.isLoading) return <BunkPage active="02"><Spinner /></BunkPage>;
+  if (!q.data) return <BunkPage active="02"><div className="font-mono text-bunk-boneDim">Unit not found</div></BunkPage>;
 
   const { unit, honours, scars } = q.data;
   const rank = rankForXP(unit.xp, unit.is_character, unit.can_exceed_30_xp);
@@ -50,8 +51,8 @@ export default function UnitDetailPage() {
   const xpPct = Math.min(100, (unit.xp / xpCap) * 100);
 
   return (
-    <>
-      <Link to={`/campaigns/${campaignId}/forces/${unit.force_id}`} className="text-xs text-ink-fade hover:text-ink-dim">← Order of Battle</Link>
+    <BunkPage active="02">
+      <Link to={`/campaigns/${campaignId}/forces/${unit.force_id}`} className="font-mono text-[10px] tracking-mono-lg text-bunk-rust hover:text-bunk-bone">‹ ORDER OF BATTLE</Link>
 
       <Card className="p-6 mt-2 mb-4">
         <div className="flex items-start justify-between gap-3">
@@ -178,7 +179,7 @@ export default function UnitDetailPage() {
           <AddScarForm campaignId={campaignId!} unitId={unitId!} existing={scars.map(s => s.name)} onDone={invalidate} onError={setError} />
         )}
       </Card>
-    </>
+    </BunkPage>
   );
 }
 

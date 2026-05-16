@@ -8,14 +8,15 @@ import ForceDetailPage from './pages/ForceDetailPage';
 import UnitDetailPage from './pages/UnitDetailPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import AdminPage from './pages/AdminPage';
-import Shell from './components/Shell';
 import { Spinner } from './components/ui';
 
-function ProtectedShell({ children }: { children: React.ReactNode }) {
+// Auth gate. Every page renders its own full-bleed Bunker layout
+// (BunkShell/BunkNav or BunkPage) — there is no shared Shell chrome.
+function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <Spinner />;
   if (!user) return <Navigate to="/" replace />;
-  return <Shell>{children}</Shell>;
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -25,12 +26,12 @@ export default function App() {
         <Routes>
           <Route path="/" element={<AuthPage />} />
           <Route path="/invite/:code" element={<AcceptInvitePage />} />
-          <Route path="/campaigns" element={<ProtectedShell><CampaignsListPage /></ProtectedShell>} />
-          <Route path="/campaigns/new" element={<ProtectedShell><WizardPage /></ProtectedShell>} />
-          <Route path="/campaigns/:campaignId" element={<ProtectedShell><DashboardPage /></ProtectedShell>} />
-          <Route path="/campaigns/:campaignId/forces/:forceId" element={<ProtectedShell><ForceDetailPage /></ProtectedShell>} />
-          <Route path="/campaigns/:campaignId/units/:unitId" element={<ProtectedShell><UnitDetailPage /></ProtectedShell>} />
-          <Route path="/admin" element={<ProtectedShell><AdminPage /></ProtectedShell>} />
+          <Route path="/campaigns" element={<Protected><CampaignsListPage /></Protected>} />
+          <Route path="/campaigns/new" element={<Protected><WizardPage /></Protected>} />
+          <Route path="/campaigns/:campaignId" element={<Protected><DashboardPage /></Protected>} />
+          <Route path="/campaigns/:campaignId/forces/:forceId" element={<Protected><ForceDetailPage /></Protected>} />
+          <Route path="/campaigns/:campaignId/units/:unitId" element={<Protected><UnitDetailPage /></Protected>} />
+          <Route path="/admin" element={<Protected><AdminPage /></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

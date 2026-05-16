@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi, AdminCampaign, AdminUser } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Card, Field, Badge, Spinner, PageHeader, EmptyState } from '../components/ui';
+import { BunkPage } from '../components/bunker';
 import { ApiError } from '../api/client';
 import { copyToClipboard } from '../utils/clipboard';
 
@@ -18,22 +19,26 @@ export default function AdminPage() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState<Tab>('settings');
 
-  if (loading) return <Spinner />;
+  if (loading) return <BunkPage><Spinner /></BunkPage>;
   if (!user) return <Navigate to="/" replace />;
   if (!user.is_site_admin) {
-    return <EmptyState icon="◷" title="Site admin only" description="Your account doesn't have site admin permissions." />;
+    return (
+      <BunkPage>
+        <EmptyState icon="◷" title="Site admin only" description="Your account doesn't have site admin permissions." />
+      </BunkPage>
+    );
   }
 
   return (
-    <>
+    <BunkPage>
       <PageHeader title="Site Administration" subtitle="Global settings, users, and campaigns." />
-      <div className="flex gap-1 mb-6 border-b border-white/5 overflow-x-auto">
+      <div className="flex gap-0 mb-6 border-b border-bunk-line overflow-x-auto">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              tab === t.key ? 'text-accent border-accent' : 'text-ink-dim border-transparent hover:text-ink'
+            className={`px-5 py-2.5 font-display text-[13px] font-bold tracking-[2px] uppercase whitespace-nowrap border-b-2 transition-colors ${
+              tab === t.key ? 'text-bunk-rust border-bunk-rust' : 'text-bunk-boneDim border-transparent hover:text-bunk-bone'
             }`}>
-            <span className="mr-1.5">{t.icon}</span>{t.label}
+            {t.label}
           </button>
         ))}
       </div>
@@ -41,7 +46,7 @@ export default function AdminPage() {
       {tab === 'settings' && <SettingsTab />}
       {tab === 'users' && <UsersTab currentUserId={user.id} />}
       {tab === 'campaigns' && <CampaignsTab />}
-    </>
+    </BunkPage>
   );
 }
 

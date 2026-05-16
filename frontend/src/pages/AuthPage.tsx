@@ -2,6 +2,8 @@ import { FormEvent, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Card, Field } from '../components/ui';
+import { BunkShell } from '../components/bunker';
+import { SigilHazard } from '../components/sigils';
 import { ApiError } from '../api/client';
 
 export default function AuthPage() {
@@ -40,20 +42,27 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm p-8">
+    <BunkShell>
+      <div className="min-h-screen flex items-center justify-center p-4">
+      <Card className="w-full max-w-sm">
+        <SigilHazard height={8} color="#e2683c" bg="#161310" />
+        <div className="p-8">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold tracking-tight text-accent">Crusade Commander</h1>
-          <p className="text-ink-dim text-sm mt-1">Warhammer 40k narrative campaigns</p>
+          <h1 className="font-display text-4xl font-bold uppercase tracking-tight text-bunk-bone">
+            Crusade <span className="text-bunk-rust">Commander</span>
+          </h1>
+          <p className="font-mono text-[10px] tracking-mono-md text-bunk-boneDim mt-2 uppercase">
+            Warhammer 40k Narrative Campaigns
+          </p>
         </div>
 
-        <div className="flex gap-1 p-1 bg-bg-elevated rounded-lg mb-6">
+        <div className="flex gap-px mb-6" style={{ background: '#2e251e' }}>
           {(['login', 'register'] as const).map(m => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`flex-1 py-1.5 px-3 rounded text-sm font-medium transition-colors ${
-                mode === m ? 'bg-accent text-white' : 'text-ink-dim hover:text-ink'
+              className={`flex-1 py-2 px-3 font-display text-[13px] font-bold tracking-[2px] uppercase transition-colors ${
+                mode === m ? 'bg-bunk-rust text-bunk-ink' : 'bg-bunk-ink text-bunk-boneDim hover:text-bunk-bone'
               }`}
             >
               {m === 'login' ? 'Sign In' : 'Create Account'}
@@ -91,12 +100,14 @@ export default function AuthPage() {
               )}
             </>
           )}
-          {error && <p className="text-sm text-danger">{error}</p>}
+          {error && <p className="font-mono text-[11px] text-bunk-red">{error}</p>}
           <Button type="submit" disabled={busy} className="w-full">
             {busy ? '…' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </Button>
         </form>
+        </div>
       </Card>
     </div>
+    </BunkShell>
   );
 }
