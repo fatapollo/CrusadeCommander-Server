@@ -23,9 +23,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/crusade-commander
-  # Build context = the folder containing the Dockerfile.
-  # Adjust if your repo layout differs.
-  BUILD_CONTEXT: "CrusadeCommander Server"
 
 jobs:
   build-and-push:
@@ -63,8 +60,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ${{ env.BUILD_CONTEXT }}
-          file: ${{ env.BUILD_CONTEXT }}/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
