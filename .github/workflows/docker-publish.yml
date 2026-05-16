@@ -1,0 +1,73 @@
+name: Build & publish Docker image
+
+# Builds the Crusade Commander image and pushes it to GitHub Container
+# Registry (GHCR) so Unraid can pull it directly.
+#
+# Pushed tags:
+#   • latest                (default branch)
+#   • <branch>              (other branches)
+#   • v1.2.3 / 1.2 / 1      (on git tags like v1.2.3)
+#   • <git-sha>             (every build)
+#
+# After the first successful run, make the GHCR package public:
+#   GitHub → your profile → Packages → crusade-commander →
+#   Package settings → Change visibility → Public
+# so Unraid can pull without credentials.
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/crusade-commander
+  # Build context = the folder containing the Dockerfile.
+  # Adjust if your repo layout differs.
+  BUILD_CONTEXT: "CrusadeCommander Server"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          file: ${{ env.BUILD_CONTEXT }}/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,52 @@
+# Crusade Commander — one-command full-stack deployment.
+#
+#   cp .env.example .env        # then edit values
+#   docker compose up --build   # first time, or after code changes
+#   docker compose up           # subsequent runs
+#
+# Visit: http://localhost:${PORT:-3000}/
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: crusade-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crusade}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-crusade}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crusade}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Database is NOT exposed to the host by default (security).
+    # Uncomment to access from local tools:
+    # ports:
+    #   - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crusade-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-crusade}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-crusade}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      ADMIN_SIGNUP_PASSCODE: ${ADMIN_SIGNUP_PASSCODE:-bigbootyCadians}
+    ports:
+      - "${PORT:-3000}:3000"
+
+volumes:
+  db-data:

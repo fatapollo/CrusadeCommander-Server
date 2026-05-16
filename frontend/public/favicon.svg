@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Crusade Commander">
+  <title>Crusade Commander</title>
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#f59e0b"/>
+      <stop offset="55%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <linearGradient id="blade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#fafaf7"/>
+      <stop offset="100%" stop-color="#b8b3a5"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1a22"/>
+      <stop offset="100%" stop-color="#0a0a0d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+  <path d="M 512 188 L 808 280 L 808 540 Q 808 728 512 866 Q 216 728 216 540 L 216 280 Z"
+        fill="url(#shield)" stroke="#0a0a0d" stroke-width="22" stroke-linejoin="round"/>
+  <path d="M 512 232 L 768 312 L 768 540 Q 768 706 512 826 Q 256 706 256 540 L 256 312 Z"
+        fill="none" stroke="#0a0a0d" stroke-width="2" opacity="0.55"/>
+  <circle cx="368" cy="404" r="22" fill="#fafaf7"/>
+  <circle cx="656" cy="404" r="22" fill="#fafaf7"/>
+  <polygon points="488,308 536,308 528,632 512,656 496,632"
+           fill="url(#blade)" stroke="#0a0a0d" stroke-width="6" stroke-linejoin="round"/>
+  <line x1="512" y1="326" x2="512" y2="620" stroke="#ffffff" stroke-width="3" opacity="0.5"/>
+  <rect x="368" y="624" width="288" height="42" rx="6" fill="#1a1a1f" stroke="#0a0a0d" stroke-width="6"/>
+  <rect x="368" y="624" width="288" height="14" fill="#fafaf7" opacity="0.18"/>
+  <rect x="494" y="660" width="36" height="68" fill="#3a3a44" stroke="#0a0a0d" stroke-width="6"/>
+  <line x1="494" y1="678" x2="530" y2="678" stroke="#0a0a0d" stroke-width="3"/>
+  <line x1="494" y1="694" x2="530" y2="694" stroke="#0a0a0d" stroke-width="3"/>
+  <line x1="494" y1="710" x2="530" y2="710" stroke="#0a0a0d" stroke-width="3"/>
+  <circle cx="512" cy="748" r="28" fill="#1a1a1f" stroke="#d97706" stroke-width="7"/>
+  <circle cx="512" cy="748" r="10" fill="#d97706"/>
+</svg>

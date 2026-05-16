@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Full Stack (one-command, docker compose)",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd 'CrusadeCommander Server' && docker compose up --build"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "Postgres only (for local dev)",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd 'CrusadeCommander Server' && docker compose up db"],
+      "port": 5432
+    },
+    {
+      "name": "API (dev — tsx watch)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "CrusadeCommander Server/backend", "run", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "Web (Vite dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "CrusadeCommander Server/frontend", "run", "dev"],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}

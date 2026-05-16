@@ -1,0 +1,45 @@
+{
+  "_comment": "Copy this file to config.json and customise. Environment variables override matching fields (see backend/src/config.ts for the mapping). config.json is gitignored.",
+
+  "server": {
+    "port": 3000,
+    "nodeEnv": "development"
+  },
+
+  "cors": {
+    "origins": ["http://localhost:5173"]
+  },
+
+  "cookies": {
+    "secure": false,
+    "sameSite": "lax",
+    "domain": null,
+    "maxAgeDays": 30
+  },
+
+  "database": {
+    "url": null,
+    "host": "localhost",
+    "port": 5432,
+    "user": "crusade",
+    "password": "changeme",
+    "database": "crusade",
+    "maxConnections": 20
+  },
+
+  "session": {
+    "secret": "REPLACE_WITH_AT_LEAST_32_RANDOM_BYTES_BASE64",
+    "_help": "Generate with: openssl rand -base64 48"
+  },
+
+  "admin": {
+    "signupPasscode": null,
+    "_help": "If set to a string, users who supply this passcode during /api/auth/register are flagged is_site_admin=true. Leave null to disable admin-by-signup."
+  },
+
+  "security": {
+    "bcryptCost": 12,
+    "authRateLimitPerWindow": 10,
+    "authRateLimitWindowMinutes": 15
+  }
+}

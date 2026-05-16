@@ -1,0 +1,63 @@
+# Crusade Commander — Unraid variant.
+#
+# Differences vs the standard docker-compose.yml:
+#   • Postgres data lives in Unraid appdata (bind mount) instead of a named
+#     volume, so it's visible in the array and covered by appdata backups.
+#   • Production-leaning defaults (COOKIE_SECURE expects HTTPS in front).
+#   • Uses a prebuilt image by default (set CRUSADE_IMAGE), falling back to
+#     a local build if you copied the source onto the server.
+#
+# Usage (Compose Manager plugin):
+#   1. Put this file + a production .env in the stack folder.
+#   2. Set APPDATA / CRUSADE_IMAGE / secrets in .env.
+#   3. Compose Up.
+#
+# Visit: http://<unraid-ip>:${PORT:-3000}/  (or via your reverse proxy)
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: crusade-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crusade}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-crusade}
+    volumes:
+      # Unraid appdata bind mount — change APPDATA if your share differs.
+      - ${APPDATA:-/mnt/user/appdata}/crusade-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crusade}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # Prebuilt image (recommended on Unraid). Override in .env, e.g.
+    #   CRUSADE_IMAGE=ghcr.io/OWNER/crusade-commander:latest
+    # If CRUSADE_IMAGE is unset, Compose builds from local source instead.
+    image: ${CRUSADE_IMAGE:-crusade-commander:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crusade-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-crusade}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-crusade}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      CORS_ORIGIN: ${PUBLIC_URL:?Set PUBLIC_URL in .env (e.g. https://crusade.example.com)}
+      # Behind HTTPS (SWAG / NginxProxyManager) this MUST be true or logins
+      # silently fail (Secure cookie never sent back over plain HTTP).
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      ADMIN_SIGNUP_PASSCODE: ${ADMIN_SIGNUP_PASSCODE:-}
+    ports:
+      # Host:container. Keep container side at 3000; do all remapping here
+      # or at the reverse proxy. Do NOT change the in-app server_port unless
+      # you also change this mapping.
+      - "${PORT:-3000}:3000"

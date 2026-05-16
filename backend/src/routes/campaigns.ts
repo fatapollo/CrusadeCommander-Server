@@ -1,0 +1,158 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { query, one } from '../db/pool.js';
+import { asyncHandler, BadRequest, NotFound } from '../middleware/errors.js';
+import { requireAuth, loadCampaign, requireAdmin, requireOwner } from '../middleware/auth.js';
+import type { Campaign } from '../types.js';
+
+const router = Router();
+router.use(requireAuth);
+
+router.get('/', asyncHandler(async (req, res) => {
+  const rows = await query<Campaign>(
+    `SELECT DISTINCT c.* FROM campaigns c
+     LEFT JOIN campaign_members m ON m.campaign_id = c.id
+     WHERE c.owner_id = $1 OR m.user_id = $1
+     ORDER BY c.created_at DESC`,
+    [req.session.userId],
+  );
+  res.json({ campaigns: rows });
+}));
+
+const createSchema = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(2000).optional().default(''),
+  phase_label: z.string().max(40).optional().default('Campaign Turn'),
+  default_battle_size: z.enum(['Incursion', 'Strike Force', 'Onslaught']).optional().default('Strike Force'),
+});
+
+router.post('/', asyncHandler(async (req, res) => {
+  const parsed = createSchema.safeParse(req.body);
+  if (!parsed.success) throw new BadRequest(parsed.error.issues[0]?.message ?? 'Invalid input');
+  const { name, description, phase_label, default_battle_size } = parsed.data;
+  const campaign = await one<Campaign>(
+    `INSERT INTO campaigns (owner_id, name, description, phase_label, default_battle_size)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [req.session.userId, name, description, phase_label, default_battle_size],
+  );
+  res.status(201).json({ campaign });
+}));
+
+router.get('/:campaignId', loadCampaign, asyncHandler(async (_req, res) => {
+  const c = await one<Campaign>('SELECT * FROM campaigns WHERE id = $1', [res.locals.campaignId]);
+  if (!c) throw new NotFound();
+  res.json({ campaign: c, role: res.locals.campaignRole });
+}));
+
+const updateSchema = createSchema.partial().extend({
+  is_active: z.boolean().optional(),
+  current_phase: z.number().int().min(1).max(1000).optional(),
+});
+
+router.patch('/:campaignId', loadCampaign, requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) throw new BadRequest(parsed.error.issues[0]?.message ?? 'Invalid input');
+  const fields = parsed.data;
+  const setClauses: string[] = []; const values: any[] = []; let i = 1;
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined) continue;
+    setClauses.push(`${k} = $${i++}`);
+    values.push(v);
+  }
+  if (setClauses.length === 0) {
+    const c = await one<Campaign>('SELECT * FROM campaigns WHERE id = $1', [res.locals.campaignId]);
+    res.json({ campaign: c });
+    return;
+  }
+  setClauses.push(`updated_at = now()`);
+  values.push(res.locals.campaignId);
+  const updated = await one<Campaign>(
+    `UPDATE campaigns SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`,
+    values,
+  );
+  res.json({ campaign: updated });
+}));
+
+router.delete('/:campaignId', loadCampaign, requireOwner, asyncHandler(async (_req, res) => {
+  await query('DELETE FROM campaigns WHERE id = $1', [res.locals.campaignId]);
+  res.status(204).end();
+}));
+
+// Lifecycle transitions
+router.post('/:campaignId/start', loadCampaign, requireAdmin, asyncHandler(async (_req, res) => {
+  const c = await one<Campaign>('SELECT * FROM campaigns WHERE id = $1', [res.locals.campaignId]);
+  if (!c) throw new NotFound();
+  if (c.state === 'active') return res.json({ campaign: c });
+  if (c.state === 'concluded') throw new BadRequest('Cannot start a concluded campaign — use reopen');
+
+  const { count } = (await one<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM crusade_forces WHERE campaign_id = $1 AND is_active = true`,
+    [res.locals.campaignId],
+  ))!;
+  if (parseInt(count, 10) < 2) throw new BadRequest('Need at least 2 active forces to start the campaign');
+
+  const updated = await one<Campaign>(
+    `UPDATE campaigns SET state = 'active', started_at = COALESCE(started_at, now()), is_active = true, updated_at = now()
+     WHERE id = $1 RETURNING *`,
+    [res.locals.campaignId],
+  );
+  res.json({ campaign: updated });
+}));
+
+router.post('/:campaignId/conclude', loadCampaign, requireAdmin, asyncHandler(async (_req, res) => {
+  const c = await one<Campaign>(
+    `UPDATE campaigns SET state = 'concluded', concluded_at = now(), is_active = false, updated_at = now()
+     WHERE id = $1 RETURNING *`,
+    [res.locals.campaignId],
+  );
+  if (!c) throw new NotFound();
+  res.json({ campaign: c });
+}));
+
+router.post('/:campaignId/reopen', loadCampaign, requireAdmin, asyncHandler(async (_req, res) => {
+  const c = await one<Campaign>(
+    `UPDATE campaigns SET state = 'active', concluded_at = NULL, is_active = true, updated_at = now()
+     WHERE id = $1 RETURNING *`,
+    [res.locals.campaignId],
+  );
+  if (!c) throw new NotFound();
+  res.json({ campaign: c });
+}));
+
+// Members: list participants for this campaign (owner + members)
+router.get('/:campaignId/members', loadCampaign, asyncHandler(async (_req, res) => {
+  const rows = await query<{ user_id: string; email: string; display_name: string; role: string; joined_at: string }>(
+    `SELECT u.id AS user_id, u.email, u.display_name, 'owner' AS role, c.created_at AS joined_at
+     FROM campaigns c JOIN users u ON u.id = c.owner_id
+     WHERE c.id = $1
+     UNION ALL
+     SELECT u.id AS user_id, u.email, u.display_name, m.role, m.joined_at
+     FROM campaign_members m JOIN users u ON u.id = m.user_id
+     WHERE m.campaign_id = $1
+     ORDER BY joined_at ASC`,
+    [res.locals.campaignId],
+  );
+  res.json({ members: rows });
+}));
+
+router.delete('/:campaignId/members/:userId', loadCampaign, requireAdmin, asyncHandler(async (req, res) => {
+  // Cannot remove the owner
+  const camp = await one<{ owner_id: string }>('SELECT owner_id FROM campaigns WHERE id = $1', [res.locals.campaignId]);
+  if (camp?.owner_id === req.params.userId) throw new BadRequest('Cannot remove the owner');
+  const r = await one('DELETE FROM campaign_members WHERE campaign_id = $1 AND user_id = $2 RETURNING user_id', [res.locals.campaignId, req.params.userId]);
+  if (!r) throw new NotFound();
+  res.status(204).end();
+}));
+
+router.patch('/:campaignId/members/:userId', loadCampaign, requireAdmin, asyncHandler(async (req, res) => {
+  const role = String(req.body?.role ?? '');
+  if (!['admin', 'participant'].includes(role)) throw new BadRequest('Role must be admin or participant');
+  const r = await one<{ role: string }>(
+    `UPDATE campaign_members SET role = $1 WHERE campaign_id = $2 AND user_id = $3 RETURNING role`,
+    [role, res.locals.campaignId, req.params.userId],
+  );
+  if (!r) throw new NotFound();
+  res.json({ role: r.role });
+}));
+
+export default router;

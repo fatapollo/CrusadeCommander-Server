@@ -1,0 +1,144 @@
+<?xml version="1.0"?>
+<!--
+  Unraid Community Applications template for the Crusade Commander app
+  container. This template is for the APP only — it needs a PostgreSQL 16
+  container running first (official `postgres:16-alpine`):
+
+    POSTGRES_USER=crusade
+    POSTGRES_PASSWORD=<strong random>
+    POSTGRES_DB=crusade
+    appdata path: /mnt/user/appdata/crusade-db -> /var/lib/postgresql/data
+
+  Put both containers on the same custom Docker network (e.g. "crusade-net")
+  so this app can resolve the DB by container name.
+
+  Find/replace OWNER below with your GitHub username (GHCR image owner).
+-->
+<Container version="2">
+  <Name>CrusadeCommander</Name>
+  <Repository>ghcr.io/OWNER/crusade-commander:latest</Repository>
+  <Registry>https://github.com/OWNER?tab=packages</Registry>
+  <Network>crusade-net</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>Crusade Commander — self-hosted manager for large-scale Warhammer 40k narrative (Crusade) campaigns. Requires a separate PostgreSQL 16 container. Set DATABASE_URL to point at it.</Overview>
+  <Category>Other:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/OWNER/crusade-commander/main/frontend/public/icon-192.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Crusade Commander — self-hosted manager for Warhammer 40k Crusade campaigns. Needs a PostgreSQL 16 container reachable via DATABASE_URL on the same Docker network.</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>3000</HostPort>
+        <ContainerPort>3000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data/>
+  <Environment>
+    <Variable>
+      <Name>NODE_ENV</Name>
+      <Value>production</Value>
+      <Mode/>
+      <Description>Run mode. Leave as production.</Description>
+      <Display>advanced</Display>
+      <Required>true</Required>
+      <Mask>false</Mask>
+    </Variable>
+    <Variable>
+      <Name>PORT</Name>
+      <Value>3000</Value>
+      <Mode/>
+      <Description>In-container listen port. Keep at 3000; remap on the host port above.</Description>
+      <Display>advanced</Display>
+      <Required>true</Required>
+      <Mask>false</Mask>
+    </Variable>
+    <Variable>
+      <Name>DATABASE_URL</Name>
+      <Value>postgres://crusade:CHANGEME@crusade-db:5432/crusade</Value>
+      <Mode/>
+      <Description>Postgres connection string. Host = the Postgres container name on the shared network.</Description>
+      <Display>always</Display>
+      <Required>true</Required>
+      <Mask>true</Mask>
+    </Variable>
+    <Variable>
+      <Name>SESSION_SECRET</Name>
+      <Value/>
+      <Mode/>
+      <Description>Session signing secret, >= 32 chars. Generate with: openssl rand -base64 48</Description>
+      <Display>always</Display>
+      <Required>true</Required>
+      <Mask>true</Mask>
+    </Variable>
+    <Variable>
+      <Name>PUBLIC_URL</Name>
+      <Value>https://crusade.example.com</Value>
+      <Mode/>
+      <Description>Public URL used for CORS and shareable links. Use your reverse-proxy hostname.</Description>
+      <Display>always</Display>
+      <Required>true</Required>
+      <Mask>false</Mask>
+    </Variable>
+    <Variable>
+      <Name>CORS_ORIGIN</Name>
+      <Value>https://crusade.example.com</Value>
+      <Mode/>
+      <Description>Allowed browser origin. Normally the same as PUBLIC_URL.</Description>
+      <Display>advanced</Display>
+      <Required>true</Required>
+      <Mask>false</Mask>
+    </Variable>
+    <Variable>
+      <Name>COOKIE_SECURE</Name>
+      <Value>true</Value>
+      <Mode/>
+      <Description>Set true when behind HTTPS (required, or logins fail). Set false only for plain-HTTP LAN testing.</Description>
+      <Display>always</Display>
+      <Required>true</Required>
+      <Mask>false</Mask>
+    </Variable>
+    <Variable>
+      <Name>COOKIE_DOMAIN</Name>
+      <Value/>
+      <Mode/>
+      <Description>Optional cookie domain, e.g. .crusade.example.com. Leave blank if unsure.</Description>
+      <Display>advanced</Display>
+      <Required>false</Required>
+      <Mask>false</Mask>
+    </Variable>
+    <Variable>
+      <Name>ADMIN_SIGNUP_PASSCODE</Name>
+      <Value/>
+      <Mode/>
+      <Description>Users who supply this passcode at registration become site admins. Leave blank to disable admin-by-signup.</Description>
+      <Display>always</Display>
+      <Required>false</Required>
+      <Mask>true</Mask>
+    </Variable>
+  </Environment>
+  <Labels/>
+  <Config Name="WebUI Port" Target="3000" Default="3000" Mode="tcp" Description="HTTP port" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="NODE_ENV" Target="NODE_ENV" Default="production" Mode="" Description="Run mode" Type="Variable" Display="advanced" Required="true" Mask="false">production</Config>
+  <Config Name="PORT" Target="PORT" Default="3000" Mode="" Description="In-container listen port" Type="Variable" Display="advanced" Required="true" Mask="false">3000</Config>
+  <Config Name="DATABASE_URL" Target="DATABASE_URL" Default="postgres://crusade:CHANGEME@crusade-db:5432/crusade" Mode="" Description="Postgres connection string" Type="Variable" Display="always" Required="true" Mask="true">postgres://crusade:CHANGEME@crusade-db:5432/crusade</Config>
+  <Config Name="SESSION_SECRET" Target="SESSION_SECRET" Default="" Mode="" Description="Session signing secret (>=32 chars)" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="PUBLIC_URL" Target="PUBLIC_URL" Default="https://crusade.example.com" Mode="" Description="Public URL" Type="Variable" Display="always" Required="true" Mask="false">https://crusade.example.com</Config>
+  <Config Name="CORS_ORIGIN" Target="CORS_ORIGIN" Default="https://crusade.example.com" Mode="" Description="Allowed browser origin" Type="Variable" Display="advanced" Required="true" Mask="false">https://crusade.example.com</Config>
+  <Config Name="COOKIE_SECURE" Target="COOKIE_SECURE" Default="true" Mode="" Description="Secure cookies (HTTPS)" Type="Variable" Display="always" Required="true" Mask="false">true</Config>
+  <Config Name="COOKIE_DOMAIN" Target="COOKIE_DOMAIN" Default="" Mode="" Description="Optional cookie domain" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="ADMIN_SIGNUP_PASSCODE" Target="ADMIN_SIGNUP_PASSCODE" Default="" Mode="" Description="Admin-by-signup passcode" Type="Variable" Display="always" Required="false" Mask="true"/>
+</Container>
