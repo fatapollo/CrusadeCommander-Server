@@ -147,12 +147,15 @@ function AddForceForm({ campaignId, onDone, existingTeams }: {
   const [faction, setFaction] = useState('');
   const [team, setTeam] = useState('');
   const [colorHex, setColorHex] = useState(PLAYER_COLORS[0]);
+  const [commander, setCommander] = useState('');
+  const [motto, setMotto] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const m = useMutation({
     mutationFn: () => forcesApi.create(campaignId, {
       name: name.trim(), player_name: playerName.trim(),
       faction, team: team.trim(), color_hex: colorHex,
+      commander: commander.trim(), motto: motto.trim(),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'forces'] }); onDone(); },
     onError: (e) => setError(e instanceof ApiError ? e.message : 'Failed'),
@@ -165,6 +168,8 @@ function AddForceForm({ campaignId, onDone, existingTeams }: {
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Force Name"><input value={name} onChange={e => setName(e.target.value)} autoFocus /></Field>
         <Field label="Player Name (optional)"><input value={playerName} onChange={e => setPlayerName(e.target.value)} /></Field>
+        <Field label="Commander (optional)"><input value={commander} onChange={e => setCommander(e.target.value)} placeholder="Capt. Inara Vell" /></Field>
+        <Field label="Motto (optional)"><input value={motto} onChange={e => setMotto(e.target.value)} placeholder="We strike first, we strike last" /></Field>
         <Field label="Faction">
           <select value={faction} onChange={e => setFaction(e.target.value)}>
             <option value="">Select…</option>

@@ -61,10 +61,18 @@ export default function UnitDetailPage() {
               <h1 className="text-2xl font-bold">{unit.name}</h1>
               {unit.is_character && <Badge color="accent">Character</Badge>}
               {unit.is_titanic && <Badge color="warning">Titanic</Badge>}
+              {unit.status === 'Reserve' && <Badge color="dim">Reserve</Badge>}
+              {unit.status === 'Injured' && <Badge color="warning">Injured</Badge>}
               {!unit.is_active && <Badge color="danger">Permanently Destroyed</Badge>}
             </div>
-            <div className="text-sm text-ink-dim mt-1">{unit.datasheet} · {unit.points_cost} pts</div>
+            <div className="text-sm text-ink-dim mt-1">
+              {unit.datasheet} · {unit.points_cost} pts{unit.unit_type ? ` · ${unit.unit_type}` : ''}
+            </div>
             {unit.equipment && <div className="text-xs text-ink-fade mt-1">{unit.equipment}</div>}
+            <UnitTypeStatusForm
+              campaignId={campaignId!} unitId={unitId!}
+              unitType={unit.unit_type} status={unit.status} onDone={invalidate} onError={setError}
+            />
           </div>
           <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
             <Badge color="accent">{rank}</Badge>
@@ -303,6 +311,43 @@ function EnhancementForm({ campaignId, forceId, unitId, onDone, onError }: {
         <Button onClick={() => m.mutate()} disabled={!name.trim() || m.isPending}>
           {m.isPending ? '…' : 'Purchase'}
         </Button>
+        <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
+function UnitTypeStatusForm({ campaignId, unitId, unitType, status, onDone, onError }: {
+  campaignId: string; unitId: string; unitType: string;
+  status: 'Active' | 'Reserve' | 'Injured'; onDone: () => void; onError: (e: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [t, setT] = useState(unitType);
+  const [s, setS] = useState<'Active' | 'Reserve' | 'Injured'>(status);
+  const m = useMutation({
+    mutationFn: () => unitsApi.update(campaignId, unitId, { unit_type: t.trim(), status: s }),
+    onSuccess: () => { onDone(); setOpen(false); },
+    onError: (e) => onError(e instanceof ApiError ? e.message : 'Failed'),
+  });
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="font-mono text-[10px] tracking-mono-md text-bunk-boneDim hover:text-bunk-bone uppercase mt-2">
+        Edit type / status
+      </button>
+    );
+  }
+  return (
+    <div className="mt-3 p-3 bg-bg-elevated rounded-lg grid sm:grid-cols-2 gap-3">
+      <Field label="Unit Type"><input value={t} onChange={e => setT(e.target.value)} placeholder="INFANTRY" /></Field>
+      <Field label="Status">
+        <select value={s} onChange={e => setS(e.target.value as 'Active' | 'Reserve' | 'Injured')}>
+          <option value="Active">Active</option>
+          <option value="Reserve">Reserve</option>
+          <option value="Injured">Injured</option>
+        </select>
+      </Field>
+      <div className="sm:col-span-2 flex gap-2">
+        <Button onClick={() => m.mutate()} disabled={m.isPending}>{m.isPending ? '…' : 'Save'}</Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </div>
     </div>

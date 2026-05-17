@@ -26,6 +26,7 @@ export default function ForceDetailPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showReq, setShowReq] = useState(false);
+  const [showEditId, setShowEditId] = useState(false);
 
   if (forceQ.isLoading || unitsQ.isLoading) return <BunkPage active="02"><Spinner /></BunkPage>;
   if (!forceQ.data) return <BunkPage active="02"><EmptyState icon="✕" title="Force not found" /></BunkPage>;
@@ -46,17 +47,32 @@ export default function ForceDetailPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="font-display text-4xl font-bold uppercase tracking-tight text-bunk-bone leading-none">{force.name}</h1>
               {force.team && <Badge color="accent">{force.team}</Badge>}
+              <button onClick={() => setShowEditId(s => !s)} className="font-mono text-[10px] tracking-mono-md text-bunk-boneDim hover:text-bunk-bone uppercase">
+                {showEditId ? 'close' : 'edit'}
+              </button>
             </div>
-            <div className="font-mono text-[11px] tracking-mono-sm text-bunk-boneDim mt-1 uppercase">{force.faction || 'Unknown faction'}{force.player_name && ` · ${force.player_name}`}</div>
+            <div className="font-mono text-[11px] tracking-mono-sm text-bunk-boneDim mt-1 uppercase">
+              {force.faction || 'Unknown faction'} · CMDR {force.commander || force.player_name || '—'} · ENL'D {new Date(force.created_at).toISOString().slice(0, 10)}
+            </div>
+            {force.motto && <div className="font-narrative italic text-sm text-bunk-boneDim mt-1">"{force.motto}"</div>}
           </div>
         </div>
+        {showEditId && (
+          <ForceIdentityForm
+            campaignId={campaignId!} forceId={forceId!}
+            commander={force.commander} motto={force.motto}
+            onDone={() => { setShowEditId(false); qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'force', forceId] }); }}
+          />
+        )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px mb-6" style={{ background: '#2e251e' }}>
-        <Stat label="Supply" value={`${supplyUsed} / ${force.supply_limit}`} sub={`${force.supply_limit - supplyUsed} free`} />
-        <Stat label="Requisition Points" value={`${force.requisition_points} / 10`} accent />
-        <Stat label="Battle Tally" value={force.battle_tally.toString()} />
-        <Stat label="Victories" value={force.victories.toString()} color="text-success" />
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-px mb-6" style={{ background: '#2e251e' }}>
+        <Stat label="Supply" value={`${supplyUsed}/${force.supply_limit}`} sub={`${force.supply_limit - supplyUsed} free`} />
+        <Stat label="RP" value={`${force.requisition_points}/10`} accent />
+        <Stat label="Battles" value={force.battle_tally.toString()} />
+        <Stat label="Wins" value={(force.wins ?? force.victories).toString()} color="text-success" />
+        <Stat label="Losses" value={(force.losses ?? 0).toString()} color="text-danger" />
+        <Stat label="Draws" value={(force.draws ?? 0).toString()} color="text-warning" />
       </div>
 
       <div className="flex justify-between items-center mb-3">
@@ -99,15 +115,58 @@ export default function ForceDetailPage() {
       {units.length === 0 ? (
         <EmptyState icon="◐" title="No units yet" description="Add units to build the Order of Battle." />
       ) : (
-        <div className="space-y-2">
-          {units.map(u => (
-            <Link key={u.id} to={`/campaigns/${campaignId}/units/${u.id}`} className="block">
-              <UnitListRow unit={u} />
-            </Link>
+        <div className="space-y-5">
+          {groupByType(units).map(([type, list]) => (
+            <div key={type}>
+              <div className="flex items-baseline gap-3 mb-2">
+                <span className="font-mono text-[10px] tracking-mono-lg text-bunk-rust border border-bunk-rust px-2 py-0.5">{type}</span>
+                <span className="font-mono text-[10px] tracking-mono-sm text-bunk-boneDim">× {list.length}</span>
+                <span className="flex-1 h-px bg-bunk-line" />
+              </div>
+              <div className="space-y-2">
+                {list.map(u => (
+                  <Link key={u.id} to={`/campaigns/${campaignId}/units/${u.id}`} className="block">
+                    <UnitListRow unit={u} />
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
     </BunkPage>
+  );
+}
+
+// Group the roster by unit_type (BunkForce-style sections); unclassified last.
+function groupByType(units: Unit[]): [string, Unit[]][] {
+  const map = new Map<string, Unit[]>();
+  for (const u of units) {
+    const key = (u.unit_type || '').trim().toUpperCase() || 'UNCLASSIFIED';
+    (map.get(key) ?? map.set(key, []).get(key)!).push(u);
+  }
+  return [...map.entries()].sort(([a], [b]) =>
+    a === 'UNCLASSIFIED' ? 1 : b === 'UNCLASSIFIED' ? -1 : a.localeCompare(b));
+}
+
+function ForceIdentityForm({ campaignId, forceId, commander, motto, onDone }: {
+  campaignId: string; forceId: string; commander: string; motto: string; onDone: () => void;
+}) {
+  const [c, setC] = useState(commander);
+  const [m, setM] = useState(motto);
+  const [err, setErr] = useState<string | null>(null);
+  const mut = useMutation({
+    mutationFn: () => forcesApi.update(campaignId, forceId, { commander: c.trim(), motto: m.trim() }),
+    onSuccess: onDone,
+    onError: (e) => setErr(e instanceof ApiError ? e.message : 'Failed'),
+  });
+  return (
+    <Card className="p-4 mt-3 grid gap-3 md:grid-cols-2">
+      <Field label="Commander"><input value={c} onChange={e => setC(e.target.value)} placeholder="Capt. Inara Vell" /></Field>
+      <Field label="Motto"><input value={m} onChange={e => setM(e.target.value)} placeholder="We strike first, we strike last" /></Field>
+      {err && <p className="font-mono text-[11px] text-bunk-red md:col-span-2">{err}</p>}
+      <div className="md:col-span-2"><Button onClick={() => mut.mutate()} disabled={mut.isPending}>{mut.isPending ? '…' : 'Save'}</Button></div>
+    </Card>
   );
 }
 
@@ -133,6 +192,8 @@ function UnitListRow({ unit }: { unit: Unit }) {
             {unit.is_titanic && <Badge color="warning">Titanic</Badge>}
             {unit.is_epic_hero && <Badge color="warning">Epic Hero</Badge>}
             {!unit.is_active && <Badge color="danger">Permanently Destroyed</Badge>}
+            {unit.is_active && unit.status === 'Reserve' && <Badge color="dim">Reserve</Badge>}
+            {unit.is_active && unit.status === 'Injured' && <Badge color="warning">Injured</Badge>}
             {unit.is_active && (unit.honour_available ?? 0) > 0 && (
               <Badge color="success">{unit.honour_available} honour available</Badge>
             )}
@@ -160,12 +221,15 @@ function AddUnitForm({ campaignId, forceId, onDone }: { campaignId: string; forc
   const [isCharacter, setIsCharacter] = useState(false);
   const [isTitanic, setIsTitanic] = useState(false);
   const [isEpicHero, setIsEpicHero] = useState(false);
+  const [unitType, setUnitType] = useState('');
+  const [status, setStatus] = useState<'Active' | 'Reserve' | 'Injured'>('Active');
   const [error, setError] = useState<string | null>(null);
 
   const m = useMutation({
     mutationFn: () => unitsApi.create(campaignId, forceId, {
       name: name.trim(), datasheet, points_cost: pointsCost, equipment,
       is_character: isCharacter, is_titanic: isTitanic, is_epic_hero: isEpicHero,
+      unit_type: unitType.trim(), status,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'force', forceId, 'units'] });
@@ -181,6 +245,14 @@ function AddUnitForm({ campaignId, forceId, onDone }: { campaignId: string; forc
         <Field label="Datasheet"><input value={datasheet} onChange={e => setDatasheet(e.target.value)} placeholder="Skorpekh Lord" /></Field>
         <Field label="Points Cost"><input type="number" min={0} value={pointsCost} onChange={e => setPointsCost(+e.target.value)} /></Field>
         <Field label="Equipment"><input value={equipment} onChange={e => setEquipment(e.target.value)} placeholder="Hyperphase glaive, enmitic disintegrator pistol" /></Field>
+        <Field label="Unit Type" hint="Roster grouping, e.g. WARLORD / INFANTRY / ARMOUR"><input value={unitType} onChange={e => setUnitType(e.target.value)} placeholder="INFANTRY" /></Field>
+        <Field label="Status">
+          <select value={status} onChange={e => setStatus(e.target.value as 'Active' | 'Reserve' | 'Injured')}>
+            <option value="Active">Active</option>
+            <option value="Reserve">Reserve</option>
+            <option value="Injured">Injured</option>
+          </select>
+        </Field>
       </div>
       <div className="grid grid-cols-3 gap-3 mt-3 text-sm">
         <label className="flex items-center gap-2"><input type="checkbox" checked={isCharacter} onChange={e => setIsCharacter(e.target.checked)} />Character</label>
