@@ -48,6 +48,7 @@ export interface Unit {
   xp: number; crusade_points: number;
   battles_played: number; battles_survived: number; units_destroyed: number;
   can_exceed_30_xp: boolean; is_active: boolean; notes: string; created_at: string;
+  honour_available?: number;
 }
 
 export interface BattleHonour {
@@ -101,6 +102,13 @@ export function rankForXP(xp: number, isCharacter: boolean, canExceed30: boolean
 
 export function maxBattleHonours(isCharacter: boolean, canExceed30: boolean): number {
   return (isCharacter || canExceed30) ? 6 : 3;
+}
+
+const RANK_ORDER: Rank[] = ['Battle-ready', 'Blooded', 'Battle-hardened', 'Heroic', 'Legendary'];
+
+/** Rank-ups achieved (Battle-ready = 0); each entitles one Battle Honour. */
+export function ranksGained(xp: number, isCharacter: boolean, canExceed30: boolean): number {
+  return RANK_ORDER.indexOf(rankForXP(xp, isCharacter, canExceed30));
 }
 
 export const BATTLE_SCARS: BattleScarName[] = [

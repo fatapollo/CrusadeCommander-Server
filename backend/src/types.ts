@@ -175,6 +175,16 @@ export function maxBattleHonours(isCharacter: boolean, canExceed30: boolean): nu
   return (isCharacter || canExceed30) ? 6 : 3;
 }
 
+const RANK_ORDER: Rank[] = ['Battle-ready', 'Blooded', 'Battle-hardened', 'Heroic', 'Legendary'];
+
+/**
+ * Number of rank-ups a unit has achieved (Battle-ready = 0). Each rank-up
+ * entitles the unit to one Battle Honour under the Crusade rules.
+ */
+export function ranksGained(xp: number, isCharacter: boolean, canExceed30: boolean): number {
+  return RANK_ORDER.indexOf(rankForXP(xp, isCharacter, canExceed30));
+}
+
 /** XP thresholds that trigger a rank-up (exclusive lower → inclusive upper). */
 export const RANK_THRESHOLDS = [
   { rank: 'Battle-ready'    as Rank, min: 0,  max: 5 },

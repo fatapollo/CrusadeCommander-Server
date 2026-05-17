@@ -44,7 +44,7 @@ export default function UnitDetailPage() {
   if (q.isLoading) return <BunkPage active="02"><Spinner /></BunkPage>;
   if (!q.data) return <BunkPage active="02"><div className="font-mono text-bunk-boneDim">Unit not found</div></BunkPage>;
 
-  const { unit, honours, scars } = q.data;
+  const { unit, honours, scars, honour_available: honourAvailable } = q.data;
   const rank = rankForXP(unit.xp, unit.is_character, unit.can_exceed_30_xp);
   const maxHonours = maxBattleHonours(unit.is_character, unit.can_exceed_30_xp);
   const xpCap = (unit.is_character || unit.can_exceed_30_xp) ? 100 : 30;
@@ -111,8 +111,11 @@ export default function UnitDetailPage() {
       {error && <p className="text-sm text-danger mb-3">{error}</p>}
 
       <Card className="p-5 mb-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <h2 className="font-semibold">Battle Honours <span className="text-ink-fade font-normal text-sm">({honours.length}/{maxHonours})</span></h2>
+          {honourAvailable > 0 && unit.is_active && (
+            <Badge color="success">{honourAvailable} available</Badge>
+          )}
         </div>
         {honours.length === 0 ? (
           <p className="text-sm text-ink-fade italic">No Battle Honours earned yet. Each rank-up grants one Battle Honour.</p>
@@ -141,8 +144,22 @@ export default function UnitDetailPage() {
             ))}
           </div>
         )}
-        {honours.length < maxHonours && unit.is_active && (
+        {unit.is_active && honourAvailable > 0 && (
           <AddHonourForm campaignId={campaignId!} unitId={unitId!} onDone={invalidate} onError={setError} />
+        )}
+        {unit.is_active && honourAvailable === 0 && honours.length < maxHonours && (
+          <p className="text-xs text-ink-fade italic mt-3">
+            No Battle Honour available — this unit must rank up (gain XP), or be Marked for Greatness and survive a battle, to earn another.
+          </p>
+        )}
+        {unit.is_character && unit.is_active && (
+          <EnhancementForm
+            campaignId={campaignId!}
+            forceId={unit.force_id}
+            unitId={unitId!}
+            onDone={invalidate}
+            onError={setError}
+          />
         )}
       </Card>
 
@@ -242,6 +259,50 @@ function AddHonourForm({ campaignId, unitId, onDone, onError }: { campaignId: st
       <Field label="Description (optional)"><textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} /></Field>
       <div className="flex gap-2">
         <Button onClick={() => m.mutate()} disabled={!name.trim() || m.isPending}>Add</Button>
+        <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
+// Renowned Heroes Requisition — the *purchased* path to an Enhancement
+// (Character only). Cost (1–3 RP, scaling with the force's Enhancements) is
+// charged server-side.
+function EnhancementForm({ campaignId, forceId, unitId, onDone, onError }: {
+  campaignId: string; forceId: string; unitId: string; onDone: () => void; onError: (e: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const m = useMutation({
+    mutationFn: () => requisitionsApi.renownedHeroes(campaignId, forceId, {
+      unit_id: unitId, enhancement_name: name.trim(), description: description || undefined,
+    }),
+    onSuccess: () => { onDone(); setOpen(false); setName(''); setDescription(''); },
+    onError: (e) => onError(e instanceof ApiError ? e.message : 'Failed'),
+  });
+  if (!open) {
+    return (
+      <Button variant="secondary" onClick={() => setOpen(true)} className="mt-3">
+        + Add Enhancement (Renowned Heroes · 1–3 RP)
+      </Button>
+    );
+  }
+  return (
+    <div className="mt-4 p-4 bg-bg-elevated rounded-lg space-y-3">
+      <p className="text-xs text-ink-fade">
+        Spends Requisition Points from this force (1–3 RP, scaling with Enhancements already in the force). One Enhancement per unit.
+      </p>
+      <Field label="Enhancement Name">
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Solar Inscriptions" />
+      </Field>
+      <Field label="Description (optional)">
+        <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} />
+      </Field>
+      <div className="flex gap-2">
+        <Button onClick={() => m.mutate()} disabled={!name.trim() || m.isPending}>
+          {m.isPending ? '…' : 'Purchase'}
+        </Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </div>
     </div>

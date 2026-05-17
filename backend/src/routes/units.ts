@@ -1,14 +1,46 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { query, one, tx } from '../db/pool.js';
+import { query, one, tx, pool } from '../db/pool.js';
 import { asyncHandler, BadRequest, NotFound, Conflict } from '../middleware/errors.js';
 import { requireAuth, loadCampaign, requireForceAccess, requireUnitAccess } from '../middleware/auth.js';
 import type { Unit, BattleHonour, BattleScar } from '../types.js';
-import { maxBattleHonours, BATTLE_SCARS } from '../types.js';
+import { maxBattleHonours, ranksGained, BATTLE_SCARS } from '../types.js';
 import { parseNewRecruitText } from '../services/newrecruit.js';
+import type { PoolClient } from 'pg';
 
 const router = Router({ mergeParams: true });
 router.use(requireAuth, loadCampaign);
+
+/**
+ * How many *unspent* Battle Honours a unit may still claim from earned
+ * progression. Each rank-up grants one; a unit Marked for Greatness that
+ * survives also earns one. Enhancements are bought via Renowned Heroes
+ * (Requisition) so they don't consume rank-earned slots — but everything
+ * still respects the absolute maxBattleHonours cap.
+ */
+async function honourAvailable(client: Pick<PoolClient, 'query'>, unit: Unit): Promise<number> {
+  const heldQ = client.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM battle_honours
+     WHERE unit_id = $1 AND category <> 'Enhancement'`,
+    [unit.id],
+  );
+  const totalQ = client.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM battle_honours WHERE unit_id = $1`,
+    [unit.id],
+  );
+  const markedQ = client.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM unit_battle_records
+     WHERE unit_id = $1 AND marked_for_greatness = true AND was_destroyed = false`,
+    [unit.id],
+  );
+  const [held, total, marked] = await Promise.all([heldQ, totalQ, markedQ]);
+  const heldN = Number(held.rows[0]?.count ?? 0);
+  const totalN = Number(total.rows[0]?.count ?? 0);
+  const markedN = Number(marked.rows[0]?.count ?? 0);
+  const earned = ranksGained(unit.xp, unit.is_character, unit.can_exceed_30_xp) + markedN;
+  const capRemaining = maxBattleHonours(unit.is_character, unit.can_exceed_30_xp) - totalN;
+  return Math.max(0, Math.min(earned - heldN, capRemaining));
+}
 
 /* ---------------- Units ---------------- */
 
@@ -20,7 +52,10 @@ router.get('/forces/:forceId/units', asyncHandler(async (req, res) => {
      ORDER BY u.is_active DESC, u.xp DESC, u.name ASC`,
     [req.params.forceId, res.locals.campaignId],
   );
-  res.json({ units });
+  const withAvail = await Promise.all(
+    units.map(async (u) => ({ ...u, honour_available: await honourAvailable(pool, u) })),
+  );
+  res.json({ units: withAvail });
 }));
 
 router.get('/units/:unitId', asyncHandler(async (req, res) => {
@@ -33,7 +68,8 @@ router.get('/units/:unitId', asyncHandler(async (req, res) => {
   if (!unit) throw new NotFound();
   const honours = await query<BattleHonour>('SELECT * FROM battle_honours WHERE unit_id = $1 ORDER BY earned_at ASC', [unit.id]);
   const scars = await query<BattleScar>('SELECT * FROM battle_scars WHERE unit_id = $1 ORDER BY earned_at ASC', [unit.id]);
-  res.json({ unit, honours, scars });
+  const honour_available = await honourAvailable(pool, unit);
+  res.json({ unit, honours, scars, honour_available });
 }));
 
 const createUnitSchema = z.object({
@@ -192,6 +228,18 @@ router.post('/units/:unitId/honours', requireUnitAccess, asyncHandler(async (req
     const have = Number(countRows[0]?.count ?? 0);
     const max = maxBattleHonours(unit.is_character, unit.can_exceed_30_xp);
     if (have >= max) throw new Conflict(`Unit already has the maximum ${max} Battle Honours.`);
+
+    // Rank-up gate: a Battle Honour is earned by ranking up (or surviving a
+    // battle Marked for Greatness). Enhancements are bought via the Renowned
+    // Heroes Requisition, so they bypass this gate.
+    if (d.category !== 'Enhancement') {
+      const avail = await honourAvailable(client, unit);
+      if (avail <= 0) {
+        throw new Conflict(
+          'No Battle Honour available — this unit must rank up (gain XP) or be Marked for Greatness and survive a battle before it can take another Battle Honour.',
+        );
+      }
+    }
 
     // Compute crusade points value
     let cpValue = 1;

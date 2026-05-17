@@ -133,6 +133,9 @@ function UnitListRow({ unit }: { unit: Unit }) {
             {unit.is_titanic && <Badge color="warning">Titanic</Badge>}
             {unit.is_epic_hero && <Badge color="warning">Epic Hero</Badge>}
             {!unit.is_active && <Badge color="danger">Permanently Destroyed</Badge>}
+            {unit.is_active && (unit.honour_available ?? 0) > 0 && (
+              <Badge color="success">{unit.honour_available} honour available</Badge>
+            )}
           </div>
           <div className="text-xs text-ink-fade truncate">
             {unit.datasheet || '—'} · {unit.points_cost} pts · <span className="text-accent">{rank}</span>

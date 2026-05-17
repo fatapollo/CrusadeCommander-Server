@@ -59,7 +59,7 @@ export const unitsApi = {
   list: (campaignId: string, forceId: string) =>
     api.get<{ units: Unit[] }>(`/api/campaigns/${campaignId}/forces/${forceId}/units`),
   get: (campaignId: string, unitId: string) =>
-    api.get<{ unit: Unit; honours: BattleHonour[]; scars: BattleScar[] }>(`/api/campaigns/${campaignId}/units/${unitId}`),
+    api.get<{ unit: Unit; honours: BattleHonour[]; scars: BattleScar[]; honour_available: number }>(`/api/campaigns/${campaignId}/units/${unitId}`),
   create: (campaignId: string, forceId: string, input: Partial<Unit>) =>
     api.post<{ unit: Unit }>(`/api/campaigns/${campaignId}/forces/${forceId}/units`, input),
   update: (campaignId: string, unitId: string, patch: Partial<Unit>) =>
