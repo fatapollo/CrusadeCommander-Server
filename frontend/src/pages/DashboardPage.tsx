@@ -85,7 +85,7 @@ export default function DashboardPage() {
             ['BATTLES', c.battle_count ?? battles.length, 'text-bunk-bone'],
             ['FORCES', c.force_count ?? activeForces.length, 'text-bunk-bone'],
             ['UNITS', c.unit_count ?? 0, 'text-bunk-bone'],
-            ['PPR', c.power_rating ?? 0, 'text-bunk-rust'],
+            ['POINTS', c.power_rating ?? 0, 'text-bunk-rust'],
           ]}
         />
       </div>

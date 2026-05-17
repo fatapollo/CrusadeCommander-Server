@@ -92,7 +92,7 @@ export default function CampaignsListPage() {
               ['ACTIVE', counts.ACTIVE, 'text-bunk-rust'],
               ['BATTLES', counts.BATTLES, 'text-bunk-bone'],
               ['UNITS', counts.UNITS, 'text-bunk-bone'],
-              ['PPR', counts.PPR, 'text-bunk-rust'],
+              ['POINTS', counts.PPR, 'text-bunk-rust'],
             ] as const
           ).map(([k, v, c]) => (
             <div key={k} className="bg-bunk-surface px-4 py-3.5">
@@ -224,7 +224,7 @@ function BunkCampaignRow({ c, featured = false }: { c: Campaign; featured?: bool
             <span className="text-bunk-bone">{String(c.unit_count ?? 0).padStart(2, '0')}</span>
           </div>
           <div className="flex justify-between">
-            <span>PPR</span>
+            <span>POINTS</span>
             <span className="text-bunk-rust">{c.power_rating ?? 0}</span>
           </div>
         </div>
