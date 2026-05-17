@@ -60,18 +60,13 @@ interface NavTab {
   to?: string;
 }
 
+// Forces and Battles are campaign-scoped (reached via a campaign's tabs), so
+// they route to the Campaigns hub where a campaign is selected.
 const DEFAULT_TABS: NavTab[] = [
   { n: '01', label: 'CAMPAIGNS', to: '/campaigns' },
-  { n: '02', label: 'FORCES' },
-  { n: '03', label: 'BATTLES' },
-  { n: '04', label: 'ARCHIVE' },
-  { n: '05', label: 'STORES' },
+  { n: '02', label: 'FORCES', to: '/campaigns' },
+  { n: '03', label: 'BATTLES', to: '/campaigns' },
 ];
-
-// The 5-tab IA is faithful to the design; only routes that exist at the
-// app's top level are linked. Campaign-scoped tabs (Forces/Battles/etc.) are
-// rendered for visual fidelity and become live in the later Shell-replacement
-// phase of the redesign.
 export function BunkNav({ active = '01' }: { active?: string }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -103,21 +98,12 @@ export function BunkNav({ active = '01' }: { active?: string }) {
               'px-5 py-2.5 -ml-px border-x border-bunk-line font-display text-[13px] font-bold tracking-[2px] flex items-center gap-2 ' +
               (isActive
                 ? 'bg-bunk-rust text-bunk-ink'
-                : 'text-bunk-boneDim ' + (it.to ? 'hover:text-bunk-bone cursor-pointer' : 'cursor-default'));
-            const inner = (
-              <>
+                : 'text-bunk-boneDim hover:text-bunk-bone');
+            return (
+              <Link key={it.n} to={it.to!} className={cls}>
                 <span className="font-mono text-[10px] opacity-65">{it.n}</span>
                 {it.label}
-              </>
-            );
-            return it.to && !isActive ? (
-              <Link key={it.n} to={it.to} className={cls}>
-                {inner}
               </Link>
-            ) : (
-              <div key={it.n} className={cls}>
-                {inner}
-              </div>
             );
           })}
         </div>
