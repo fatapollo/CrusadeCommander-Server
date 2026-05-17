@@ -258,3 +258,24 @@ CREATE TABLE IF NOT EXISTS requisition_log (
     used_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_req_force ON requisition_log(force_id);
+
+------------------------------------------------------------
+-- Redesign additions: richer battle / unit / force fields
+-- (idempotent ALTERs so existing databases upgrade in place)
+------------------------------------------------------------
+ALTER TABLE battles ADD COLUMN IF NOT EXISTS attacker_score INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE battles ADD COLUMN IF NOT EXISTS defender_score INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE battles ADD COLUMN IF NOT EXISTS deployment TEXT NOT NULL DEFAULT '';
+ALTER TABLE battles ADD COLUMN IF NOT EXISTS duration_turns INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE battles ADD COLUMN IF NOT EXISTS opposing_commander TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE units ADD COLUMN IF NOT EXISTS unit_type TEXT NOT NULL DEFAULT '';
+ALTER TABLE units ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Active'
+    CHECK (status IN ('Active', 'Reserve', 'Injured'));
+
+ALTER TABLE crusade_forces ADD COLUMN IF NOT EXISTS commander TEXT NOT NULL DEFAULT '';
+ALTER TABLE crusade_forces ADD COLUMN IF NOT EXISTS motto TEXT NOT NULL DEFAULT '';
+
+-- Inline battle outcomes (applied when the battle is confirmed).
+ALTER TABLE unit_battle_records ADD COLUMN IF NOT EXISTS grant_honour_json TEXT;
+ALTER TABLE unit_battle_records ADD COLUMN IF NOT EXISTS grant_scar TEXT;

@@ -89,6 +89,14 @@ export interface UnitBattleInput {
   marked_for_greatness?: boolean;
   ooa_result?: OutOfActionResult | null;
   notes?: string;
+  grant_honour?: {
+    category: 'Battle Trait' | 'Weapon Modification' | 'Crusade Relic' | 'Enhancement';
+    name: string;
+    description?: string;
+    weapon_name?: string;
+    relic_category?: 'Artificer' | 'Antiquity' | 'Legendary' | null;
+  };
+  grant_scar?: string;
 }
 
 export const battlesApi = {
@@ -97,8 +105,10 @@ export const battlesApi = {
     api.get<{ battle: Battle; records: UnitBattleRecord[] }>(`/api/campaigns/${campaignId}/battles/${battleId}`),
   create: (campaignId: string, input: {
     battle_size: BattleSize; mission_name?: string;
+    deployment?: string; duration_turns?: number; opposing_commander?: string;
     attacker_force_id: string; defender_force_id: string;
-    outcome: BattleOutcome; notes?: string;
+    outcome: BattleOutcome; attacker_score?: number; defender_score?: number;
+    notes?: string;
     attacker_units?: UnitBattleInput[]; defender_units?: UnitBattleInput[];
   }) => api.post<{ battle: Battle; records: UnitBattleRecord[]; needs_confirmation: boolean }>(`/api/campaigns/${campaignId}/battles`, input),
   confirm: (campaignId: string, battleId: string) =>

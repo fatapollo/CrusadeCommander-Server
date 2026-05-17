@@ -5,6 +5,7 @@ import { query, one, tx } from '../db/pool.js';
 import { asyncHandler, BadRequest, Forbidden, NotFound, Conflict } from '../middleware/errors.js';
 import { requireAuth, loadCampaign, requireAdmin } from '../middleware/auth.js';
 import type { Battle, Unit, UnitBattleRecord } from '../types.js';
+import { ranksGained, maxBattleHonours } from '../types.js';
 
 const router = Router({ mergeParams: true });
 router.use(requireAuth, loadCampaign);
@@ -32,14 +33,28 @@ const unitRecordSchema = z.object({
   marked_for_greatness: z.boolean().optional().default(false),
   ooa_result: z.enum(['passed', 'devastating_blow', 'battle_scar']).nullable().optional(),
   notes: z.string().max(500).optional().default(''),
+  // Optional inline outcomes applied when the battle is confirmed.
+  grant_honour: z.object({
+    category: z.enum(['Battle Trait', 'Weapon Modification', 'Crusade Relic', 'Enhancement']),
+    name: z.string().min(1).max(120),
+    description: z.string().max(2000).optional().default(''),
+    weapon_name: z.string().max(120).optional().default(''),
+    relic_category: z.enum(['Artificer', 'Antiquity', 'Legendary']).nullable().optional(),
+  }).optional(),
+  grant_scar: z.enum(['Crippling Damage', 'Battle-weary', 'Fatigued', 'Disgraced', 'Mark of Shame', 'Deep Scars']).optional(),
 });
 
 const recordBattleSchema = z.object({
   battle_size: z.enum(['Incursion', 'Strike Force', 'Onslaught']),
   mission_name: z.string().max(120).optional().default(''),
+  deployment: z.string().max(120).optional().default(''),
+  duration_turns: z.number().int().min(0).max(50).optional().default(0),
+  opposing_commander: z.string().max(120).optional().default(''),
   attacker_force_id: z.string().uuid(),
   defender_force_id: z.string().uuid(),
   outcome: z.enum(['Attacker Wins', 'Defender Wins', 'Draw']),
+  attacker_score: z.number().int().min(0).max(999).optional().default(0),
+  defender_score: z.number().int().min(0).max(999).optional().default(0),
   notes: z.string().max(4000).optional().default(''),
   attacker_units: z.array(unitRecordSchema).default([]),
   defender_units: z.array(unitRecordSchema).default([]),
@@ -100,14 +115,15 @@ router.post('/', asyncHandler(async (req, res) => {
     const status = needsConfirmation ? 'pending' : 'confirmed';
 
     const { rows: bRows } = await client.query<Battle>(
-      `INSERT INTO battles (campaign_id, battle_size, mission_name, attacker_force_id, defender_force_id, outcome, notes, campaign_phase, status, submitted_by_user_id, confirmed_by_user_id, confirmed_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      `INSERT INTO battles (campaign_id, battle_size, mission_name, attacker_force_id, defender_force_id, outcome, notes, campaign_phase, status, submitted_by_user_id, confirmed_by_user_id, confirmed_at, attacker_score, defender_score, deployment, duration_turns, opposing_commander)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [
         res.locals.campaignId, d.battle_size, d.mission_name,
         d.attacker_force_id, d.defender_force_id, d.outcome, d.notes, phase,
         status, userId,
         status === 'confirmed' ? userId : null,
         status === 'confirmed' ? new Date() : null,
+        d.attacker_score, d.defender_score, d.deployment, d.duration_turns, d.opposing_commander,
       ],
     );
     const battle = bRows[0]!;
@@ -121,9 +137,11 @@ router.post('/', asyncHandler(async (req, res) => {
     for (const input of allInputs) {
       const xpGain = await previewXpGain(client, input);
       const { rows: recRows } = await client.query<UnitBattleRecord>(
-        `INSERT INTO unit_battle_records (battle_id, unit_id, force_id, was_warlord, enemies_destroyed, was_destroyed, marked_for_greatness, xp_gained, ooa_result, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-        [battle.id, input.unit_id, input.force_id, input.was_warlord, input.enemies_destroyed, input.was_destroyed, input.marked_for_greatness, xpGain, input.ooa_result ?? null, input.notes],
+        `INSERT INTO unit_battle_records (battle_id, unit_id, force_id, was_warlord, enemies_destroyed, was_destroyed, marked_for_greatness, xp_gained, ooa_result, notes, grant_honour_json, grant_scar)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+        [battle.id, input.unit_id, input.force_id, input.was_warlord, input.enemies_destroyed, input.was_destroyed, input.marked_for_greatness, xpGain, input.ooa_result ?? null, input.notes,
+         input.grant_honour ? JSON.stringify(input.grant_honour) : null,
+         input.grant_scar ?? null],
       );
       records.push(recRows[0]!);
     }
@@ -298,6 +316,66 @@ async function applyBattleEffects(
        WHERE id = $4`,
       [newXp, r.enemies_destroyed, r.was_destroyed ? 0 : 1, unit.id],
     );
+
+    // Inline Battle Scar from a failed Out of Action (max 3, no duplicates).
+    const grantScar = (r as any).grant_scar as string | null | undefined;
+    if (grantScar) {
+      const { rows: scarRows } = await client.query<{ count: string }>(
+        'SELECT COUNT(*)::text AS count FROM battle_scars WHERE unit_id = $1',
+        [unit.id],
+      );
+      const { rows: dupRows } = await client.query(
+        'SELECT 1 FROM battle_scars WHERE unit_id = $1 AND name = $2',
+        [unit.id, grantScar],
+      );
+      if (Number(scarRows[0]?.count ?? 0) < 3 && dupRows.length === 0) {
+        await client.query(
+          'INSERT INTO battle_scars (unit_id, name, description) VALUES ($1,$2,$3)',
+          [unit.id, grantScar, ''],
+        );
+        await client.query('UPDATE units SET crusade_points = crusade_points - 1 WHERE id = $1', [unit.id]);
+      }
+    }
+
+    // Inline Battle Honour — only if the unit has actually earned one
+    // (rank-up or Marked-for-Greatness survival); Enhancements bypass the gate.
+    const grantHonourJson = (r as any).grant_honour_json as string | null | undefined;
+    if (grantHonourJson) {
+      try {
+        const gh = JSON.parse(grantHonourJson) as {
+          category: string; name: string; description?: string;
+          weapon_name?: string; relic_category?: string | null;
+        };
+        const { rows: totalRows } = await client.query<{ count: string }>(
+          'SELECT COUNT(*)::text AS count FROM battle_honours WHERE unit_id = $1', [unit.id]);
+        const totalN = Number(totalRows[0]?.count ?? 0);
+        const max = maxBattleHonours(unit.is_character, unit.can_exceed_30_xp);
+        let allowed = totalN < max;
+        if (allowed && gh.category !== 'Enhancement') {
+          const { rows: heldRows } = await client.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count FROM battle_honours WHERE unit_id = $1 AND category <> 'Enhancement'`, [unit.id]);
+          const { rows: markRows } = await client.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count FROM unit_battle_records
+             WHERE unit_id = $1 AND marked_for_greatness = true AND was_destroyed = false`, [unit.id]);
+          const earned = ranksGained(newXp, unit.is_character, unit.can_exceed_30_xp) + Number(markRows[0]?.count ?? 0);
+          allowed = earned - Number(heldRows[0]?.count ?? 0) > 0;
+        }
+        if (allowed) {
+          let cp = 1;
+          if (gh.category === 'Crusade Relic') {
+            cp = gh.relic_category === 'Legendary' ? 3 : gh.relic_category === 'Antiquity' ? 2 : 1;
+          } else if (unit.is_titanic) {
+            cp = 2;
+          }
+          await client.query(
+            `INSERT INTO battle_honours (unit_id, category, name, description, weapon_name, relic_category, crusade_points_value)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [unit.id, gh.category, gh.name, gh.description ?? '', gh.weapon_name ?? '', gh.relic_category ?? null, cp],
+          );
+          await client.query('UPDATE units SET crusade_points = crusade_points + $1 WHERE id = $2', [cp, unit.id]);
+        }
+      } catch { /* malformed grant payload — skip silently */ }
+    }
 
     // Devastating Blow: pop most recent honour (-CP). If none, unit is permanently destroyed.
     if (r.was_destroyed && r.ooa_result === 'devastating_blow') {

@@ -83,6 +83,8 @@ const createUnitSchema = z.object({
   is_fortification: z.boolean().optional().default(false),
   is_swarm: z.boolean().optional().default(false),
   notes: z.string().max(4000).optional().default(''),
+  unit_type: z.string().max(40).optional().default(''),
+  status: z.enum(['Active', 'Reserve', 'Injured']).optional().default('Active'),
 });
 
 router.post('/forces/:forceId/units', requireForceAccess, asyncHandler(async (req, res) => {
@@ -102,9 +104,9 @@ router.post('/forces/:forceId/units', requireForceAccess, asyncHandler(async (re
   }
   const d = parsed.data;
   const unit = await one<Unit>(
-    `INSERT INTO units (force_id, name, datasheet, points_cost, equipment, is_character, is_titanic, is_epic_hero, is_fortification, is_swarm, notes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-    [force.id, d.name, d.datasheet, d.points_cost, d.equipment, d.is_character, d.is_titanic, d.is_epic_hero, d.is_fortification, d.is_swarm, d.notes],
+    `INSERT INTO units (force_id, name, datasheet, points_cost, equipment, is_character, is_titanic, is_epic_hero, is_fortification, is_swarm, notes, unit_type, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+    [force.id, d.name, d.datasheet, d.points_cost, d.equipment, d.is_character, d.is_titanic, d.is_epic_hero, d.is_fortification, d.is_swarm, d.notes, d.unit_type, d.status],
   );
   res.status(201).json({ unit });
 }));

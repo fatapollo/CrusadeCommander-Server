@@ -35,10 +35,14 @@ export interface CrusadeForce {
   name: string; player_name: string; faction: string; team: string; color_hex: string;
   supply_limit: number; requisition_points: number;
   battle_tally: number; victories: number; notes: string; created_at: string;
+  commander: string; motto: string;
   is_active: boolean;
   dropped_at: string | null;
   unit_count?: number;
   power_rating?: number;
+  wins?: number;
+  losses?: number;
+  draws?: number;
 }
 
 export interface Unit {
@@ -48,6 +52,7 @@ export interface Unit {
   xp: number; crusade_points: number;
   battles_played: number; battles_survived: number; units_destroyed: number;
   can_exceed_30_xp: boolean; is_active: boolean; notes: string; created_at: string;
+  unit_type: string; status: 'Active' | 'Reserve' | 'Injured';
   honour_available?: number;
 }
 
@@ -64,6 +69,8 @@ export interface BattleScar {
 export interface Battle {
   id: UUID; campaign_id: UUID; battle_size: BattleSize; mission_name: string;
   attacker_force_id: UUID; defender_force_id: UUID; outcome: BattleOutcome;
+  attacker_score: number; defender_score: number;
+  deployment: string; duration_turns: number; opposing_commander: string;
   notes: string; campaign_phase: number; occurred_at: string;
   status: BattleStatus;
   submitted_by_user_id: UUID | null;

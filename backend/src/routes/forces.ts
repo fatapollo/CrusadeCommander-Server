@@ -8,13 +8,25 @@ import type { CrusadeForce } from '../types.js';
 const router = Router({ mergeParams: true });
 router.use(requireAuth, loadCampaign);
 
+// Per-force aggregates (alias must be `cf`). W/L/D derived from confirmed
+// battle history rather than stored, so it always reconciles.
+const FORCE_STATS = `
+  (SELECT COUNT(*)::int FROM units u
+     WHERE u.force_id = cf.id AND u.is_active) AS unit_count,
+  (SELECT COALESCE(SUM(u.points_cost), 0)::int FROM units u
+     WHERE u.force_id = cf.id AND u.is_active) AS power_rating,
+  (SELECT COUNT(*)::int FROM battles b WHERE b.campaign_id = cf.campaign_id AND b.status = 'confirmed'
+     AND ((b.attacker_force_id = cf.id AND b.outcome = 'Attacker Wins')
+       OR (b.defender_force_id = cf.id AND b.outcome = 'Defender Wins'))) AS wins,
+  (SELECT COUNT(*)::int FROM battles b WHERE b.campaign_id = cf.campaign_id AND b.status = 'confirmed'
+     AND ((b.attacker_force_id = cf.id AND b.outcome = 'Defender Wins')
+       OR (b.defender_force_id = cf.id AND b.outcome = 'Attacker Wins'))) AS losses,
+  (SELECT COUNT(*)::int FROM battles b WHERE b.campaign_id = cf.campaign_id AND b.status = 'confirmed'
+     AND b.outcome = 'Draw' AND (b.attacker_force_id = cf.id OR b.defender_force_id = cf.id)) AS draws`;
+
 router.get('/', asyncHandler(async (_req, res) => {
   const forces = await query<CrusadeForce>(
-    `SELECT cf.*,
-       (SELECT COUNT(*)::int FROM units u
-          WHERE u.force_id = cf.id AND u.is_active) AS unit_count,
-       (SELECT COALESCE(SUM(u.points_cost), 0)::int FROM units u
-          WHERE u.force_id = cf.id AND u.is_active) AS power_rating
+    `SELECT cf.*, ${FORCE_STATS}
      FROM crusade_forces cf
      WHERE cf.campaign_id = $1
      ORDER BY victories DESC, battle_tally DESC, name ASC`,
@@ -32,6 +44,8 @@ const createSchema = z.object({
   supply_limit: z.number().int().min(0).max(20_000).optional().default(1000),
   requisition_points: z.number().int().min(0).max(10).optional().default(5),
   notes: z.string().max(2000).optional().default(''),
+  commander: z.string().max(120).optional().default(''),
+  motto: z.string().max(200).optional().default(''),
 });
 
 // Any member can create their own Crusade Force in this campaign.
@@ -54,16 +68,16 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   const force = await one<CrusadeForce>(
-    `INSERT INTO crusade_forces (campaign_id, user_id, name, player_name, faction, team, color_hex, supply_limit, requisition_points, notes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-    [res.locals.campaignId, req.session.userId, d.name, d.player_name, d.faction, d.team, d.color_hex, d.supply_limit, d.requisition_points, d.notes],
+    `INSERT INTO crusade_forces (campaign_id, user_id, name, player_name, faction, team, color_hex, supply_limit, requisition_points, notes, commander, motto)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+    [res.locals.campaignId, req.session.userId, d.name, d.player_name, d.faction, d.team, d.color_hex, d.supply_limit, d.requisition_points, d.notes, d.commander, d.motto],
   );
   res.status(201).json({ force });
 }));
 
 router.get('/:forceId', asyncHandler(async (req, res) => {
   const force = await one<CrusadeForce>(
-    'SELECT * FROM crusade_forces WHERE id = $1 AND campaign_id = $2',
+    `SELECT cf.*, ${FORCE_STATS} FROM crusade_forces cf WHERE cf.id = $1 AND cf.campaign_id = $2`,
     [req.params.forceId, res.locals.campaignId],
   );
   if (!force) throw new NotFound();

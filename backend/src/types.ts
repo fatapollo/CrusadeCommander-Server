@@ -61,12 +61,17 @@ export interface CrusadeForce {
   battle_tally: number;
   victories: number;
   notes: string;
+  commander: string;
+  motto: string;
   is_active: boolean;
   dropped_at: string | null;
   created_at: string;
   // Computed aggregates (present on list responses, not stored).
   unit_count?: number;
   power_rating?: number;
+  wins?: number;
+  losses?: number;
+  draws?: number;
 }
 
 export interface Unit {
@@ -89,7 +94,10 @@ export interface Unit {
   can_exceed_30_xp: boolean;
   is_active: boolean;
   notes: string;
+  unit_type: string;
+  status: 'Active' | 'Reserve' | 'Injured';
   created_at: string;
+  honour_available?: number;
 }
 
 export interface BattleHonour {
@@ -122,6 +130,11 @@ export interface Battle {
   attacker_force_id: UUID;
   defender_force_id: UUID;
   outcome: BattleOutcome;
+  attacker_score: number;
+  defender_score: number;
+  deployment: string;
+  duration_turns: number;
+  opposing_commander: string;
   notes: string;
   campaign_phase: number;
   occurred_at: string;

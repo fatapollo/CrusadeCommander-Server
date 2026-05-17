@@ -54,11 +54,15 @@ export function BunkNav({ active }: { active?: string } = {}) {
 
   let tabs: { n: string; label: string; to: string; isActive: boolean }[];
   if (campaignId) {
-    // Force/Unit detail pages are drill-downs of the Forces tab.
+    // Force/Unit detail pages are drill-downs of the Forces tab; the
+    // Inscribe Battle page belongs to Battles.
     const isForcesDrill = /\/(forces|units)\/[^/]+/.test(location.pathname);
-    const activeKey = isForcesDrill
-      ? 'forces'
-      : new URLSearchParams(location.search).get('tab') || 'overview';
+    const isBattleEntry = /\/battles\//.test(location.pathname);
+    const activeKey = isBattleEntry
+      ? 'battles'
+      : isForcesDrill
+        ? 'forces'
+        : new URLSearchParams(location.search).get('tab') || 'overview';
     tabs = CAMPAIGN_TABS.map((t) => ({
       n: t.n,
       label: t.label,

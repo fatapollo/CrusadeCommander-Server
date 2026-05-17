@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { battlesApi, unitsApi } from '../../api/endpoints';
 import type { Battle, BattleOutcome, BattleSize, CampaignRole, CrusadeForce, Unit, OutOfActionResult } from '../../types';
@@ -41,7 +42,12 @@ export default function BattlesTab({ campaignId, forces, battles, defaultBattleS
     <>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">{confirmed.length} Confirmed · {pending.length} Pending</h2>
-        <Button onClick={() => setShowRecord(s => !s)}>{showRecord ? 'Close' : '+ Record Battle'}</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setShowRecord(s => !s)}>{showRecord ? 'Close' : 'Quick record'}</Button>
+          <Link to={`/campaigns/${campaignId}/battles/new`}>
+            <Button>＋ Inscribe Battle</Button>
+          </Link>
+        </div>
       </div>
 
       {showRecord && <RecordBattleForm campaignId={campaignId} forces={activeForces} defaultBattleSize={defaultBattleSize} onDone={() => setShowRecord(false)} />}
