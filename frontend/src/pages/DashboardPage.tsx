@@ -96,7 +96,6 @@ export default function DashboardPage() {
       {tab === 'forces' && <ForcesTab campaignId={c.id} forces={forces} currentUserId={user!.id} isAdmin={isAdmin} />}
       {tab === 'battles' && (
         <BattlesTab campaignId={c.id} forces={forces} battles={battles}
-          defaultBattleSize={c.default_battle_size}
           currentUserId={user!.id} currentRole={role} campaignState={c.state} />
       )}
       {tab === 'members' && <MembersTab campaignId={c.id} currentRole={role} currentUserId={user!.id} />}
