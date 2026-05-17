@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { forcesApi, unitsApi, requisitionsApi } from '../api/endpoints';
-import type { Unit } from '../types';
+import type { Unit, CrusadeForce } from '../types';
 import { rankForXP } from '../types';
 import { Badge, Button, Card, EmptyState, Field, Spinner } from '../components/ui';
 import { BunkPage } from '../components/bunker';
@@ -25,6 +25,7 @@ export default function ForceDetailPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showReq, setShowReq] = useState(false);
 
   if (forceQ.isLoading || unitsQ.isLoading) return <BunkPage active="02"><Spinner /></BunkPage>;
   if (!forceQ.data) return <BunkPage active="02"><EmptyState icon="✕" title="Force not found" /></BunkPage>;
@@ -57,6 +58,21 @@ export default function ForceDetailPage() {
         <Stat label="Battle Tally" value={force.battle_tally.toString()} />
         <Stat label="Victories" value={force.victories.toString()} color="text-success" />
       </div>
+
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-bunk-bone">Requisitions</h2>
+        <Button variant="secondary" onClick={() => setShowReq(s => !s)}>
+          {showReq ? 'Close' : `Spend RP (${force.requisition_points})`}
+        </Button>
+      </div>
+      {showReq && (
+        <RequisitionsPanel
+          campaignId={campaignId!}
+          forceId={forceId!}
+          force={force}
+          units={units}
+        />
+      )}
 
       <div className="flex justify-between items-center mb-3 mt-6">
         <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-bunk-bone">Order of Battle</h2>
@@ -174,6 +190,213 @@ function AddUnitForm({ campaignId, forceId, onDone }: { campaignId: string; forc
         <Button variant="ghost" onClick={onDone}>Cancel</Button>
       </div>
     </Card>
+  );
+}
+
+// ──────── Requisitions ────────
+function RequisitionsPanel({ campaignId, forceId, force, units }: {
+  campaignId: string; forceId: string; force: CrusadeForce; units: Unit[];
+}) {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const active = units.filter(u => u.is_active);
+
+  const logQ = useQuery({
+    queryKey: ['campaign', campaignId, 'force', forceId, 'requisitions'],
+    queryFn: () => requisitionsApi.log(campaignId, forceId),
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'force', forceId] });
+    qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'force', forceId, 'units'] });
+    qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'force', forceId, 'requisitions'] });
+    qc.invalidateQueries({ queryKey: ['campaign', campaignId, 'forces'] });
+  };
+
+  // Generic runner: each requisition resolves to { force, log } on success.
+  function useReq(run: () => Promise<any>) {
+    return useMutation({
+      mutationFn: run,
+      onSuccess: (r: any) => {
+        invalidate();
+        const paid = r?.log?.cost_paid;
+        setMsg({ kind: 'ok', text: `Done${paid != null ? ` — spent ${paid} RP` : ''}.` });
+      },
+      onError: (e) => setMsg({ kind: 'err', text: e instanceof ApiError ? e.message : 'Requisition failed' }),
+    });
+  }
+
+  const supplyM = useReq(() => requisitionsApi.increaseSupplyLimit(campaignId, forceId));
+
+  const characters = active.filter(u => u.is_character);
+  const veteranEligible = active.filter(u => !u.is_character && u.xp >= 30 && !u.can_exceed_30_xp);
+
+  return (
+    <Card className="p-5 mb-6">
+      <p className="font-mono text-[10px] tracking-mono-sm text-bunk-boneDim mb-4 uppercase">
+        {force.requisition_points} RP available · spending is logged · costs are charged server-side
+      </p>
+      {msg && (
+        <p className={`font-mono text-[11px] mb-4 ${msg.kind === 'ok' ? 'text-bunk-green' : 'text-bunk-red'}`}>
+          {msg.text}
+        </p>
+      )}
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {/* Increase Supply Limit */}
+        <ReqCard title="Increase Supply Limit" cost="1 RP" desc="+200 pts to this force's Supply Limit.">
+          <Button onClick={() => supplyM.mutate()} disabled={supplyM.isPending || force.requisition_points < 1}>
+            {supplyM.isPending ? '…' : 'Purchase (1 RP)'}
+          </Button>
+        </ReqCard>
+
+        {/* Renowned Heroes */}
+        <ReqUnitForm
+          title="Renowned Heroes" cost="1–3 RP"
+          desc="Grant an Enhancement to a Character (cost scales with Enhancements already in the force; one per unit)."
+          units={characters} emptyHint="No eligible Characters."
+          extra={(unitId, set) => (
+            <>
+              <Field label="Enhancement Name">
+                <input value={set.name} onChange={e => set.setName(e.target.value)} placeholder="Solar Inscriptions" />
+              </Field>
+              <Field label="Description (optional)">
+                <input value={set.desc} onChange={e => set.setDesc(e.target.value)} />
+              </Field>
+            </>
+          )}
+          submit={(unitId, s) => requisitionsApi.renownedHeroes(campaignId, forceId, {
+            unit_id: unitId, enhancement_name: s.name.trim(), description: s.desc || undefined,
+          })}
+          canSubmit={(_u, s) => !!s.name.trim()}
+          run={useReq}
+        />
+
+        {/* Legendary Veterans */}
+        <ReqUnitForm
+          title="Legendary Veterans" cost="3 RP"
+          desc="A non-Character unit at 30 XP may exceed the 30 XP cap and keep ranking up."
+          units={veteranEligible} emptyHint="No non-Character unit has reached 30 XP."
+          submit={(unitId) => requisitionsApi.legendaryVeterans(campaignId, forceId, unitId)}
+          run={useReq}
+        />
+
+        {/* Rearm and Resupply */}
+        <ReqUnitForm
+          title="Rearm and Resupply" cost="1 RP"
+          desc="Change a unit's wargear loadout (optionally adjust its points)."
+          units={active} emptyHint="No active units."
+          extra={(unitId, set) => (
+            <>
+              <Field label="New Equipment">
+                <input value={set.name} onChange={e => set.setName(e.target.value)} placeholder="Gauss reaper, …" />
+              </Field>
+              <Field label="New Points Cost (optional)">
+                <input type="number" min={0} value={set.num} onChange={e => set.setNum(e.target.value)} />
+              </Field>
+            </>
+          )}
+          submit={(unitId, s) => requisitionsApi.rearmAndResupply(campaignId, forceId, {
+            unit_id: unitId, new_equipment: s.name.trim(),
+            new_points_cost: s.num !== '' ? Number(s.num) : undefined,
+          })}
+          canSubmit={(_u, s) => !!s.name.trim()}
+          run={useReq}
+        />
+
+        {/* Fresh Recruits */}
+        <ReqUnitForm
+          title="Fresh Recruits" cost="1–4 RP"
+          desc="Add models to a unit (raises its points; cost scales with the unit's Battle Honours)."
+          units={active} emptyHint="No active units."
+          extra={(unitId, set) => (
+            <Field label="Points to Add">
+              <input type="number" min={1} value={set.num} onChange={e => set.setNum(e.target.value)} />
+            </Field>
+          )}
+          submit={(unitId, s) => requisitionsApi.freshRecruits(campaignId, forceId, {
+            unit_id: unitId, added_points: Number(s.num || 0),
+          })}
+          canSubmit={(_u, s) => Number(s.num) > 0}
+          run={useReq}
+        />
+
+        {/* Repair & Recuperate pointer */}
+        <ReqCard title="Repair and Recuperate" cost="1–5 RP" desc="Remove a Battle Scar — use the Repair action on the scar from that unit's dossier.">
+          <span className="font-mono text-[10px] text-bunk-boneMute uppercase">Per-scar — on the Unit page</span>
+        </ReqCard>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="font-mono text-[9px] tracking-mono-lg text-bunk-rust mb-2">// REQUISITION LOG</h3>
+        {logQ.data && logQ.data.log.length > 0 ? (
+          <div className="border border-bunk-line divide-y divide-bunk-line">
+            {logQ.data.log.map((e: any) => (
+              <div key={e.id} className="flex items-center gap-3 px-3 py-2 font-mono text-[11px]">
+                <span className="text-bunk-bone flex-1 truncate">{e.requisition_name}</span>
+                {e.notes && <span className="text-bunk-boneDim truncate hidden sm:block">{e.notes}</span>}
+                <span className="text-bunk-rust">−{e.cost_paid} RP</span>
+                <span className="text-bunk-boneMute">{e.used_at ? new Date(e.used_at).toISOString().slice(0, 10) : ''}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="font-mono text-[10px] text-bunk-boneMute uppercase">No requisitions spent yet.</p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function ReqCard({ title, cost, desc, children }: {
+  title: string; cost: string; desc: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-bunk-surfaceLo border border-bunk-line p-4 flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-display font-bold uppercase tracking-wide text-bunk-bone">{title}</span>
+        <span className="font-mono text-[10px] tracking-mono-md text-bunk-rust">{cost}</span>
+      </div>
+      <p className="text-xs text-bunk-boneDim flex-1">{desc}</p>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+function ReqUnitForm({ title, cost, desc, units, emptyHint, extra, submit, canSubmit, run }: {
+  title: string; cost: string; desc: string; units: Unit[]; emptyHint: string;
+  extra?: (unitId: string, set: { name: string; setName: (v: string) => void; desc: string; setDesc: (v: string) => void; num: string; setNum: (v: string) => void }) => React.ReactNode;
+  submit: (unitId: string, s: { name: string; desc: string; num: string }) => Promise<any>;
+  canSubmit?: (unitId: string, s: { name: string; desc: string; num: string }) => boolean;
+  run: (fn: () => Promise<any>) => { mutate: () => void; isPending: boolean };
+}) {
+  const [unitId, setUnitId] = useState('');
+  const [name, setName] = useState('');
+  const [dsc, setDsc] = useState('');
+  const [num, setNum] = useState('');
+  const m = run(() => submit(unitId, { name, desc: dsc, num }));
+  const s = { name, desc: dsc, num };
+  const ok = !!unitId && (!canSubmit || canSubmit(unitId, s));
+
+  return (
+    <ReqCard title={title} cost={cost} desc={desc}>
+      {units.length === 0 ? (
+        <span className="font-mono text-[10px] text-bunk-boneMute uppercase">{emptyHint}</span>
+      ) : (
+        <div className="grid gap-2">
+          <Field label="Unit">
+            <select value={unitId} onChange={e => setUnitId(e.target.value)}>
+              <option value="">— select —</option>
+              {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </Field>
+          {extra && unitId && extra(unitId, { name, setName, desc: dsc, setDesc: setDsc, num, setNum })}
+          <Button onClick={() => m.mutate()} disabled={!ok || m.isPending}>
+            {m.isPending ? '…' : `Purchase (${cost})`}
+          </Button>
+        </div>
+      )}
+    </ReqCard>
   );
 }
 
