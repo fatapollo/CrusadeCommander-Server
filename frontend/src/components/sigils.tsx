@@ -250,3 +250,21 @@ export const FACTION_CRESTS: Record<string, CrestComponent> = {
     </svg>
   ),
 };
+
+// Map a real (free-text) 40k faction to one of the abstract crests. Purely
+// cosmetic — keyword buckets, with a neutral reticle fallback.
+export function crestFor(faction: string | null | undefined): CrestComponent {
+  const f = (faction ?? '').toLowerCase();
+  if (/chaos|death guard|thousand sons|world eaters|emperor'?s children|daemon|khorne|nurgle|tzeentch|slaanesh|chaos knights/.test(f))
+    return FACTION_CRESTS.BLACK_HORN;
+  if (/mechanicus|imperial knight|knight|votann|skitarii|cult mechanicus/.test(f))
+    return FACTION_CRESTS.COG_ASCENDANT;
+  if (/aeldari|eldar|harlequin|drukhari|ynnari|craftworld/.test(f))
+    return FACTION_CRESTS.WHISPER_HOST;
+  if (/tyranid|genestealer|necron|ork|t'?au|tau|leagues of votann/.test(f))
+    return FACTION_CRESTS.ORDER_VIGIL;
+  if (f.trim() === '')
+    return ({ size = 60, color = 'currentColor' }: SizeColor) => <SigilReticle size={size} color={color} />;
+  // Imperium / Space Marines / Astra Militarum / Custodes / Sisters / default
+  return FACTION_CRESTS.IRON_LEGION;
+}

@@ -253,10 +253,24 @@ export default function BattleEntryPage() {
                   {forces.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </Field>
-              <Field label="Attacker Score"><input type="number" min={0} value={attackerScore} onChange={e => setAttackerScore(+e.target.value)} /></Field>
-              <Field label="Defender Score"><input type="number" min={0} value={defenderScore} onChange={e => setDefenderScore(+e.target.value)} /></Field>
             </div>
-            <div className="mt-3">
+            <div className="grid grid-cols-2 gap-6 items-end mt-5">
+              <div>
+                <div className="font-mono text-[9px] tracking-mono-md text-bunk-rust mb-1 uppercase">Your Score</div>
+                <input
+                  type="number" min={0} value={attackerScore}
+                  onChange={e => setAttackerScore(+e.target.value)}
+                  className="!w-full !bg-transparent !border-0 !border-b-2 !border-b-bunk-rust !rounded-none !p-0 font-display !text-7xl sm:!text-8xl font-bold !text-bunk-rust !tracking-tight tabular-nums" />
+              </div>
+              <div>
+                <div className="font-mono text-[9px] tracking-mono-md text-bunk-boneDim mb-1 uppercase">Opposing Score</div>
+                <input
+                  type="number" min={0} value={defenderScore}
+                  onChange={e => setDefenderScore(+e.target.value)}
+                  className="!w-full !bg-transparent !border-0 !border-b-2 !border-b-bunk-line !rounded-none !p-0 font-display !text-7xl sm:!text-8xl font-bold !text-bunk-boneDim !tracking-tight tabular-nums" />
+              </div>
+            </div>
+            <div className="mt-5">
               <div className="font-mono text-[9px] tracking-mono-md text-bunk-rust mb-1.5 uppercase">Result (auto from score — override if needed)</div>
               <div className="flex gap-px" style={{ background: '#2e251e' }}>
                 {(['Attacker Wins', 'Draw', 'Defender Wins'] as BattleOutcome[]).map(o => (
