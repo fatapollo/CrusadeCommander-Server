@@ -33,27 +33,6 @@ export function BunkShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function BunkStatusBar() {
-  const { user } = useAuth();
-  const ident = (user?.display_name || user?.email || 'OPERATOR').toUpperCase();
-  return (
-    <div className="flex items-center gap-3.5 px-7 py-1.5 bg-bunk-ink border-b border-bunk-line font-mono text-[10px] tracking-mono-md text-bunk-boneDim">
-      <span>
-        <span className="text-bunk-green">●</span> LINK OK
-      </span>
-      <span>
-        <span className="text-bunk-rust">●</span> AUSPEX 87%
-      </span>
-      <span className="hidden sm:inline">
-        <span className="text-bunk-green">●</span> SECTOR 14-Ω
-      </span>
-      <span className="flex-1 text-center hidden md:block">// CRUSADE COMMANDER · OPERATIONS THEATRE</span>
-      <span className="truncate max-w-[40vw]">{ident}</span>
-      <span className="text-bunk-rust">VAULT 003-Ω</span>
-    </div>
-  );
-}
-
 // The top bar only ever shows tabs you can navigate to directly. Outside a
 // campaign that's just Campaigns; inside one it's the campaign's own tabs
 // (Overview / Forces / Battles / Members), driven by the ?tab= query param so
@@ -98,7 +77,6 @@ export function BunkNav({ active }: { active?: string } = {}) {
   }
   return (
     <div>
-      <BunkStatusBar />
       <SigilHazard height={8} color={RUST} bg="#06040a" />
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-8 px-7 py-4 bg-bunk-surfaceLo border-b border-bunk-line">
         <Link to="/campaigns" className="flex items-center gap-3.5">

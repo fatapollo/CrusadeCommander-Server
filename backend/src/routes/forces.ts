@@ -10,7 +10,14 @@ router.use(requireAuth, loadCampaign);
 
 router.get('/', asyncHandler(async (_req, res) => {
   const forces = await query<CrusadeForce>(
-    `SELECT * FROM crusade_forces WHERE campaign_id = $1 ORDER BY victories DESC, battle_tally DESC, name ASC`,
+    `SELECT cf.*,
+       (SELECT COUNT(*)::int FROM units u
+          WHERE u.force_id = cf.id AND u.is_active) AS unit_count,
+       (SELECT COALESCE(SUM(u.points_cost), 0)::int FROM units u
+          WHERE u.force_id = cf.id AND u.is_active) AS power_rating
+     FROM crusade_forces cf
+     WHERE cf.campaign_id = $1
+     ORDER BY victories DESC, battle_tally DESC, name ASC`,
     [res.locals.campaignId],
   );
   res.json({ forces });

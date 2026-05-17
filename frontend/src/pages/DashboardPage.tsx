@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { battlesApi, campaignsApi, forcesApi } from '../api/endpoints';
 import { Button, Card, EmptyState, Spinner } from '../components/ui';
-import { BunkPage, BunkPill, BunkStatus } from '../components/bunker';
+import { BunkPage, BunkPill, BunkStatus, BunkStatGrid } from '../components/bunker';
 import { SigilHazard } from '../components/sigils';
 import { ApiError } from '../api/client';
 import OverviewTab from './tabs/OverviewTab';
@@ -76,6 +76,18 @@ export default function DashboardPage() {
             <span>· YOU ARE {role}</span>
           </div>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <BunkStatGrid
+          cols={4}
+          stats={[
+            ['BATTLES', c.battle_count ?? battles.length, 'text-bunk-bone'],
+            ['FORCES', c.force_count ?? activeForces.length, 'text-bunk-bone'],
+            ['UNITS', c.unit_count ?? 0, 'text-bunk-bone'],
+            ['PPR', c.power_rating ?? 0, 'text-bunk-rust'],
+          ]}
+        />
       </div>
 
       <LifecycleBanner campaign={c} isAdmin={isAdmin} activeForceCount={activeForces.length} />

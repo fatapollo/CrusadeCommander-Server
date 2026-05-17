@@ -53,11 +53,13 @@ export default function CampaignsListPage() {
     );
   }
 
+  const sum = (k: 'force_count' | 'unit_count' | 'battle_count' | 'power_rating') =>
+    campaigns.reduce((s, c) => s + (c[k] ?? 0), 0);
   const counts = {
     ACTIVE: campaigns.filter((c) => c.state === 'active').length,
-    NEW: campaigns.filter((c) => c.state === 'setup').length,
-    ARCHIVED: campaigns.filter((c) => c.state === 'concluded').length,
-    TOTAL: campaigns.length,
+    BATTLES: sum('battle_count'),
+    UNITS: sum('unit_count'),
+    PPR: sum('power_rating'),
   };
 
   const visible =
@@ -88,9 +90,9 @@ export default function CampaignsListPage() {
           {(
             [
               ['ACTIVE', counts.ACTIVE, 'text-bunk-rust'],
-              ['NEW', counts.NEW, 'text-bunk-warning'],
-              ['ARCHIVED', counts.ARCHIVED, 'text-bunk-boneDim'],
-              ['TOTAL', counts.TOTAL, 'text-bunk-bone'],
+              ['BATTLES', counts.BATTLES, 'text-bunk-bone'],
+              ['UNITS', counts.UNITS, 'text-bunk-bone'],
+              ['PPR', counts.PPR, 'text-bunk-rust'],
             ] as const
           ).map(([k, v, c]) => (
             <div key={k} className="bg-bunk-surface px-4 py-3.5">
@@ -172,7 +174,7 @@ function BunkCampaignRow({ c, featured = false }: { c: Campaign; featured?: bool
       style={{ borderLeft: `4px solid ${STATUS_LEFT_BORDER[status]}` }}
     >
       <div
-        className={`grid grid-cols-[auto_1fr_auto] items-stretch border transition-colors ${
+        className={`grid grid-cols-[auto_1fr_auto_auto] items-stretch border transition-colors ${
           featured
             ? 'bg-bunk-surfaceHi border-bunk-lineHi'
             : 'bg-bunk-surface border-bunk-line group-hover:border-bunk-lineHi'
@@ -211,17 +213,33 @@ function BunkCampaignRow({ c, featured = false }: { c: Campaign; featured?: bool
           </div>
         </div>
 
-        {/* Phase numeral block */}
+        {/* Telemetry block */}
+        <div className="hidden sm:flex w-[180px] border-l border-bunk-line bg-bunk-surfaceLo flex-col justify-center px-4 py-3.5 font-mono text-[10px] tracking-mono-sm text-bunk-boneDim gap-1">
+          <div className="flex justify-between">
+            <span>FORCES</span>
+            <span className="text-bunk-bone">{String(c.force_count ?? 0).padStart(2, '0')}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>UNITS</span>
+            <span className="text-bunk-bone">{String(c.unit_count ?? 0).padStart(2, '0')}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>PPR</span>
+            <span className="text-bunk-rust">{c.power_rating ?? 0}</span>
+          </div>
+        </div>
+
+        {/* Battles numeral block */}
         <div className="w-[140px] border-l border-bunk-line bg-bunk-ink flex flex-col items-center justify-center p-3.5 gap-1">
           <div
             className={`font-display font-bold text-bunk-rust leading-[0.9] tracking-tight ${
               featured ? 'text-6xl' : 'text-5xl'
             }`}
           >
-            {String(c.current_phase).padStart(2, '0')}
+            {String(c.battle_count ?? 0).padStart(2, '0')}
           </div>
           <div className="font-mono text-[9px] tracking-mono-md text-bunk-boneDim text-center">
-            {c.phase_label.toUpperCase()}
+            BATTLES
           </div>
           <div className="font-mono text-[9px] tracking-mono-sm text-bunk-rust mt-1.5">
             {c.default_battle_size.toUpperCase()}

@@ -24,6 +24,10 @@ export interface Campaign {
   state: CampaignState;
   started_at: string | null;
   concluded_at: string | null;
+  force_count?: number;
+  unit_count?: number;
+  battle_count?: number;
+  power_rating?: number;
 }
 
 export interface CrusadeForce {
@@ -33,6 +37,8 @@ export interface CrusadeForce {
   battle_tally: number; victories: number; notes: string; created_at: string;
   is_active: boolean;
   dropped_at: string | null;
+  unit_count?: number;
+  power_rating?: number;
 }
 
 export interface Unit {

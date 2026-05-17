@@ -40,6 +40,11 @@ export interface Campaign {
   default_battle_size: BattleSize;
   created_at: string;
   updated_at: string;
+  // Computed aggregates (present on list/get responses, not stored).
+  force_count?: number;
+  unit_count?: number;
+  battle_count?: number;
+  power_rating?: number;
 }
 
 export interface CrusadeForce {
@@ -59,6 +64,9 @@ export interface CrusadeForce {
   is_active: boolean;
   dropped_at: string | null;
   created_at: string;
+  // Computed aggregates (present on list responses, not stored).
+  unit_count?: number;
+  power_rating?: number;
 }
 
 export interface Unit {

@@ -8,9 +8,23 @@ import type { Campaign } from '../types.js';
 const router = Router();
 router.use(requireAuth);
 
+// Correlated aggregates surfaced alongside every campaign so the index /
+// detail screens can show real force / unit / battle / power-rating figures.
+const CAMPAIGN_STATS = `
+  (SELECT COUNT(*)::int FROM crusade_forces f
+     WHERE f.campaign_id = c.id AND f.is_active) AS force_count,
+  (SELECT COUNT(*)::int FROM units u
+     JOIN crusade_forces f ON f.id = u.force_id
+     WHERE f.campaign_id = c.id AND f.is_active AND u.is_active) AS unit_count,
+  (SELECT COUNT(*)::int FROM battles b
+     WHERE b.campaign_id = c.id AND b.status = 'confirmed') AS battle_count,
+  (SELECT COALESCE(SUM(u.points_cost), 0)::int FROM units u
+     JOIN crusade_forces f ON f.id = u.force_id
+     WHERE f.campaign_id = c.id AND f.is_active AND u.is_active) AS power_rating`;
+
 router.get('/', asyncHandler(async (req, res) => {
   const rows = await query<Campaign>(
-    `SELECT DISTINCT c.* FROM campaigns c
+    `SELECT DISTINCT c.*, ${CAMPAIGN_STATS} FROM campaigns c
      LEFT JOIN campaign_members m ON m.campaign_id = c.id
      WHERE c.owner_id = $1 OR m.user_id = $1
      ORDER BY c.created_at DESC`,
@@ -39,7 +53,10 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 router.get('/:campaignId', loadCampaign, asyncHandler(async (_req, res) => {
-  const c = await one<Campaign>('SELECT * FROM campaigns WHERE id = $1', [res.locals.campaignId]);
+  const c = await one<Campaign>(
+    `SELECT c.*, ${CAMPAIGN_STATS} FROM campaigns c WHERE c.id = $1`,
+    [res.locals.campaignId],
+  );
   if (!c) throw new NotFound();
   res.json({ campaign: c, role: res.locals.campaignRole });
 }));
