@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { battlesApi, campaignsApi, forcesApi } from '../api/endpoints';
 import { Button, Card, EmptyState, Spinner } from '../components/ui';
@@ -13,18 +13,15 @@ import MembersTab from './tabs/MembersTab';
 import { useAuth } from '../auth/AuthContext';
 
 type TabKey = 'overview' | 'forces' | 'battles' | 'members';
-const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'overview', label: 'Overview', icon: '▤' },
-  { key: 'forces', label: 'Forces', icon: '◉' },
-  { key: 'battles', label: 'Battles', icon: '⚔' },
-  { key: 'members', label: 'Members', icon: '⛁' },
-];
+const TAB_KEYS: TabKey[] = ['overview', 'forces', 'battles', 'members'];
 
 export default function DashboardPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [tab, setTab] = useState<TabKey>('overview');
+  const [searchParams] = useSearchParams();
+  const raw = searchParams.get('tab') as TabKey | null;
+  const tab: TabKey = raw && TAB_KEYS.includes(raw) ? raw : 'overview';
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['campaign', campaignId],
@@ -82,17 +79,6 @@ export default function DashboardPage() {
       </div>
 
       <LifecycleBanner campaign={c} isAdmin={isAdmin} activeForceCount={activeForces.length} />
-
-      <div className="flex gap-0 mb-6 border-b border-bunk-line overflow-x-auto">
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-5 py-2.5 font-display text-[13px] font-bold tracking-[2px] uppercase whitespace-nowrap border-b-2 transition-colors ${
-              tab === t.key ? 'text-bunk-rust border-bunk-rust' : 'text-bunk-boneDim border-transparent hover:text-bunk-bone'
-            }`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       {tab === 'overview' && <OverviewTab campaign={c} forces={forces} battles={battles} />}
       {tab === 'forces' && <ForcesTab campaignId={c.id} forces={forces} currentUserId={user!.id} isAdmin={isAdmin} />}

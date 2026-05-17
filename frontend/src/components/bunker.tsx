@@ -7,7 +7,7 @@
 // uses the rust default via the `bunk` Tailwind tokens.
 
 import { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { SigilHazard, FACTION_CRESTS } from './sigils';
 
@@ -54,23 +54,48 @@ export function BunkStatusBar() {
   );
 }
 
-interface NavTab {
-  n: string;
-  label: string;
-  to?: string;
-}
-
-// Forces and Battles are campaign-scoped (reached via a campaign's tabs), so
-// they route to the Campaigns hub where a campaign is selected.
-const DEFAULT_TABS: NavTab[] = [
-  { n: '01', label: 'CAMPAIGNS', to: '/campaigns' },
-  { n: '02', label: 'FORCES', to: '/campaigns' },
-  { n: '03', label: 'BATTLES', to: '/campaigns' },
+// The top bar only ever shows tabs you can navigate to directly. Outside a
+// campaign that's just Campaigns; inside one it's the campaign's own tabs
+// (Overview / Forces / Battles / Members), driven by the ?tab= query param so
+// every tab is a real, deep-linkable URL.
+const CAMPAIGN_TABS = [
+  { key: 'overview', n: '01', label: 'OVERVIEW' },
+  { key: 'forces', n: '02', label: 'FORCES' },
+  { key: 'battles', n: '03', label: 'BATTLES' },
+  { key: 'members', n: '04', label: 'MEMBERS' },
 ];
-export function BunkNav({ active = '01' }: { active?: string }) {
+
+export function BunkNav({ active }: { active?: string } = {}) {
+  void active; // legacy prop — top-bar tabs are now derived from the route
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { campaignId } = useParams<{ campaignId?: string }>();
+  const location = useLocation();
   const Crest = FACTION_CRESTS.IRON_LEGION;
+
+  let tabs: { n: string; label: string; to: string; isActive: boolean }[];
+  if (campaignId) {
+    // Force/Unit detail pages are drill-downs of the Forces tab.
+    const isForcesDrill = /\/(forces|units)\/[^/]+/.test(location.pathname);
+    const activeKey = isForcesDrill
+      ? 'forces'
+      : new URLSearchParams(location.search).get('tab') || 'overview';
+    tabs = CAMPAIGN_TABS.map((t) => ({
+      n: t.n,
+      label: t.label,
+      to: `/campaigns/${campaignId}?tab=${t.key}`,
+      isActive: t.key === activeKey,
+    }));
+  } else {
+    tabs = [
+      {
+        n: '01',
+        label: 'CAMPAIGNS',
+        to: '/campaigns',
+        isActive: location.pathname.startsWith('/campaigns'),
+      },
+    ];
+  }
   return (
     <div>
       <BunkStatusBar />
@@ -92,15 +117,14 @@ export function BunkNav({ active = '01' }: { active?: string }) {
         </Link>
 
         <div className="hidden lg:flex justify-center">
-          {DEFAULT_TABS.map((it) => {
-            const isActive = it.n === active;
+          {tabs.map((it) => {
             const cls =
               'px-5 py-2.5 -ml-px border-x border-bunk-line font-display text-[13px] font-bold tracking-[2px] flex items-center gap-2 ' +
-              (isActive
+              (it.isActive
                 ? 'bg-bunk-rust text-bunk-ink'
                 : 'text-bunk-boneDim hover:text-bunk-bone');
             return (
-              <Link key={it.n} to={it.to!} className={cls}>
+              <Link key={it.n} to={it.to} className={cls}>
                 <span className="font-mono text-[10px] opacity-65">{it.n}</span>
                 {it.label}
               </Link>
