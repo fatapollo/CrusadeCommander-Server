@@ -188,7 +188,7 @@ export function CornerOrnament({
   );
 }
 
-type CrestComponent = (props: SizeColor) => JSX.Element;
+export type CrestComponent = (props: SizeColor) => JSX.Element;
 
 export const FACTION_CRESTS: Record<string, CrestComponent> = {
   IRON_LEGION: ({ size = 60, color = 'currentColor' }: SizeColor) => (
