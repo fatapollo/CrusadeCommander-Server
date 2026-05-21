@@ -45,6 +45,42 @@ export interface Campaign {
   unit_count?: number;
   battle_count?: number;
   power_rating?: number;
+  // Sector Map (Cosmetic MVP). Phases promoted to a typed array; the scalar
+  // current_phase remains the 1-based index into it. sector_map is optional.
+  phases?: CampaignPhase[] | null;
+  sector_map?: SectorMap | null;
+}
+
+export interface CampaignPhase {
+  idx: number;        // 1-based; matches campaign.current_phase semantics
+  label: string;
+  date: string | null;
+  pending?: boolean;
+}
+
+export type NodeType = 'HIVE' | 'FORGE' | 'PORT' | 'RELIC' | 'STRONG' | 'WILD' | 'OBJ';
+export type NodeOwner = string | 'NEUTRAL' | 'CONTESTED'; // force UUID or sentinel
+
+export interface SectorNode {
+  id: string;
+  name: string;
+  type: NodeType;
+  pos: { x: number; y: number };
+  value: 1 | 2 | 3 | 4 | 5;
+  traits: string[];
+  /** Parallel to campaign.phases — owners[phaseIdx-1] = owner at that phase. */
+  owners: NodeOwner[];
+  isObjective: boolean;
+  history: { phase: number; event: string }[];
+  /** Battle UUIDs fought at this node, in commit order. */
+  battles: string[];
+}
+
+export type SectorEdge = [string, string];
+
+export interface SectorMap {
+  nodes: SectorNode[];
+  edges: SectorEdge[];
 }
 
 export interface CrusadeForce {
@@ -135,6 +171,8 @@ export interface Battle {
   deployment: string;
   duration_turns: number;
   opposing_commander: string;
+  contesting_node_id?: string | null;
+  claim_node_on_win?: boolean;
   notes: string;
   campaign_phase: number;
   occurred_at: string;

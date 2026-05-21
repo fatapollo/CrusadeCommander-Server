@@ -27,6 +27,10 @@ export const campaignsApi = {
   start: (id: string) => api.post<{ campaign: Campaign }>(`/api/campaigns/${id}/start`),
   conclude: (id: string) => api.post<{ campaign: Campaign }>(`/api/campaigns/${id}/conclude`),
   reopen: (id: string) => api.post<{ campaign: Campaign }>(`/api/campaigns/${id}/reopen`),
+  setPhases: (id: string, phases: import('../types').CampaignPhase[]) =>
+    api.put<{ campaign: Campaign }>(`/api/campaigns/${id}/phases`, { phases }),
+  setSectorMap: (id: string, map: import('../types').SectorMap) =>
+    api.put<{ campaign: Campaign }>(`/api/campaigns/${id}/map`, map),
 };
 
 export const invitesApi = {
@@ -110,6 +114,8 @@ export const battlesApi = {
     outcome: BattleOutcome; attacker_score?: number; defender_score?: number;
     notes?: string;
     attacker_units?: UnitBattleInput[]; defender_units?: UnitBattleInput[];
+    contesting_node_id?: string | null;
+    claim_node_on_win?: boolean;
   }) => api.post<{ battle: Battle; records: UnitBattleRecord[]; needs_confirmation: boolean }>(`/api/campaigns/${campaignId}/battles`, input),
   confirm: (campaignId: string, battleId: string) =>
     api.post<{ battle: Battle; records: UnitBattleRecord[] }>(`/api/campaigns/${campaignId}/battles/${battleId}/confirm`),

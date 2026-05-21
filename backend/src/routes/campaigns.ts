@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { query, one } from '../db/pool.js';
 import { asyncHandler, BadRequest, NotFound } from '../middleware/errors.js';
 import { requireAuth, loadCampaign, requireAdmin, requireOwner } from '../middleware/auth.js';
-import type { Campaign } from '../types.js';
+import type { Campaign, CampaignPhase } from '../types.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -22,6 +22,23 @@ const CAMPAIGN_STATS = `
      JOIN crusade_forces f ON f.id = u.force_id
      WHERE f.campaign_id = c.id AND f.is_active AND u.is_active) AS power_rating`;
 
+// Sector Map needs a phase list; if admins haven't persisted one yet,
+// synthesize a sensible default from the existing scalar fields so the
+// frontend can always assume `campaign.phases` is a populated array.
+function withPhases(c: Campaign): Campaign {
+  if (c.phases && c.phases.length > 0) return c;
+  const total = Math.max(1, c.current_phase ?? 1);
+  const synth: CampaignPhase[] = [];
+  for (let i = 1; i <= total; i++) {
+    synth.push({
+      idx: i,
+      label: i === total ? (c.phase_label || `Phase ${String(i).padStart(2, '0')}`) : `Phase ${String(i).padStart(2, '0')}`,
+      date: null,
+    });
+  }
+  return { ...c, phases: synth };
+}
+
 router.get('/', asyncHandler(async (req, res) => {
   const rows = await query<Campaign>(
     `SELECT DISTINCT c.*, ${CAMPAIGN_STATS} FROM campaigns c
@@ -30,7 +47,7 @@ router.get('/', asyncHandler(async (req, res) => {
      ORDER BY c.created_at DESC`,
     [req.session.userId],
   );
-  res.json({ campaigns: rows });
+  res.json({ campaigns: rows.map(withPhases) });
 }));
 
 const createSchema = z.object({
@@ -58,7 +75,7 @@ router.get('/:campaignId', loadCampaign, asyncHandler(async (_req, res) => {
     [res.locals.campaignId],
   );
   if (!c) throw new NotFound();
-  res.json({ campaign: c, role: res.locals.campaignRole });
+  res.json({ campaign: withPhases(c), role: res.locals.campaignRole });
 }));
 
 const updateSchema = createSchema.partial().extend({
@@ -88,6 +105,65 @@ router.patch('/:campaignId', loadCampaign, requireAdmin, asyncHandler(async (req
     values,
   );
   res.json({ campaign: updated });
+}));
+
+// Sector Map — admin replaces the full phase list. 1-based idx must include
+// at least the campaign's current_phase. Cosmetic only; no rules effects.
+const phaseSchema = z.object({
+  idx: z.number().int().min(1).max(200),
+  label: z.string().max(80).default(''),
+  date: z.string().max(40).nullable().default(null),
+  pending: z.boolean().optional(),
+});
+const phasesBodySchema = z.object({ phases: z.array(phaseSchema).min(1).max(200) });
+
+router.put('/:campaignId/phases', loadCampaign, requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = phasesBodySchema.safeParse(req.body);
+  if (!parsed.success) throw new BadRequest(parsed.error.issues[0]?.message ?? 'Invalid input');
+  const updated = await one<Campaign>(
+    `UPDATE campaigns SET phases = $1::jsonb, updated_at = now()
+     WHERE id = $2 RETURNING *`,
+    [JSON.stringify(parsed.data.phases), res.locals.campaignId],
+  );
+  if (!updated) throw new NotFound();
+  res.json({ campaign: withPhases(updated) });
+}));
+
+const nodeSchema = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().min(1).max(120),
+  type: z.enum(['HIVE', 'FORGE', 'PORT', 'RELIC', 'STRONG', 'WILD', 'OBJ']),
+  pos: z.object({ x: z.number(), y: z.number() }),
+  value: z.number().int().min(1).max(5),
+  traits: z.array(z.string().max(40)).max(20).default([]),
+  owners: z.array(z.string().max(64)).max(200),
+  isObjective: z.boolean().default(false),
+  history: z.array(z.object({
+    phase: z.number().int().min(1).max(200),
+    event: z.string().max(200),
+  })).max(2000).default([]),
+  battles: z.array(z.string().uuid()).max(2000).default([]),
+});
+const sectorMapSchema = z.object({
+  nodes: z.array(nodeSchema).max(200),
+  edges: z.array(z.tuple([z.string(), z.string()])).max(400),
+});
+
+router.put('/:campaignId/map', loadCampaign, requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = sectorMapSchema.safeParse(req.body);
+  if (!parsed.success) throw new BadRequest(parsed.error.issues[0]?.message ?? 'Invalid input');
+  // Edges must reference known node ids.
+  const ids = new Set(parsed.data.nodes.map(n => n.id));
+  for (const [a, b] of parsed.data.edges) {
+    if (!ids.has(a) || !ids.has(b)) throw new BadRequest(`Edge references unknown node: ${a} / ${b}`);
+  }
+  const updated = await one<Campaign>(
+    `UPDATE campaigns SET sector_map = $1::jsonb, updated_at = now()
+     WHERE id = $2 RETURNING *`,
+    [JSON.stringify(parsed.data), res.locals.campaignId],
+  );
+  if (!updated) throw new NotFound();
+  res.json({ campaign: withPhases(updated) });
 }));
 
 router.delete('/:campaignId', loadCampaign, requireOwner, asyncHandler(async (_req, res) => {

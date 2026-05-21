@@ -279,3 +279,16 @@ ALTER TABLE crusade_forces ADD COLUMN IF NOT EXISTS motto TEXT NOT NULL DEFAULT 
 -- Inline battle outcomes (applied when the battle is confirmed).
 ALTER TABLE unit_battle_records ADD COLUMN IF NOT EXISTS grant_honour_json TEXT;
 ALTER TABLE unit_battle_records ADD COLUMN IF NOT EXISTS grant_scar TEXT;
+
+------------------------------------------------------------
+-- Sector Map (Cosmetic MVP) — campaign-level narrative meta-layer.
+-- Stored as JSONB blobs on the campaign; mutations are atomic
+-- read-modify-write under the existing tx() helper. Nothing here drives
+-- rules effects; ownership flips are purely narrative.
+------------------------------------------------------------
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS phases JSONB;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS sector_map JSONB;
+
+ALTER TABLE battles ADD COLUMN IF NOT EXISTS contesting_node_id TEXT;
+ALTER TABLE battles ADD COLUMN IF NOT EXISTS claim_node_on_win BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_battles_contesting_node ON battles(campaign_id, contesting_node_id);

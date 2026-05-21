@@ -58,6 +58,9 @@ const recordBattleSchema = z.object({
   notes: z.string().max(4000).optional().default(''),
   attacker_units: z.array(unitRecordSchema).default([]),
   defender_units: z.array(unitRecordSchema).default([]),
+  // Sector Map (cosmetic): tag this battle to a node, optionally claim it on win.
+  contesting_node_id: z.string().min(1).max(80).nullable().optional(),
+  claim_node_on_win: z.boolean().optional().default(false),
 });
 
 /**
@@ -115,8 +118,8 @@ router.post('/', asyncHandler(async (req, res) => {
     const status = needsConfirmation ? 'pending' : 'confirmed';
 
     const { rows: bRows } = await client.query<Battle>(
-      `INSERT INTO battles (campaign_id, battle_size, mission_name, attacker_force_id, defender_force_id, outcome, notes, campaign_phase, status, submitted_by_user_id, confirmed_by_user_id, confirmed_at, attacker_score, defender_score, deployment, duration_turns, opposing_commander)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+      `INSERT INTO battles (campaign_id, battle_size, mission_name, attacker_force_id, defender_force_id, outcome, notes, campaign_phase, status, submitted_by_user_id, confirmed_by_user_id, confirmed_at, attacker_score, defender_score, deployment, duration_turns, opposing_commander, contesting_node_id, claim_node_on_win)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
       [
         res.locals.campaignId, d.battle_size, d.mission_name,
         d.attacker_force_id, d.defender_force_id, d.outcome, d.notes, phase,
@@ -124,6 +127,7 @@ router.post('/', asyncHandler(async (req, res) => {
         status === 'confirmed' ? userId : null,
         status === 'confirmed' ? new Date() : null,
         d.attacker_score, d.defender_score, d.deployment, d.duration_turns, d.opposing_commander,
+        d.contesting_node_id ?? null, d.claim_node_on_win ?? false,
       ],
     );
     const battle = bRows[0]!;
@@ -405,4 +409,56 @@ async function applyBattleEffects(
   } else if (battle.outcome === 'Defender Wins') {
     await client.query('UPDATE crusade_forces SET victories = victories + 1 WHERE id = $1', [battle.defender_force_id]);
   }
+
+  // Sector Map: tag the battle on the contested node, and (only on a
+  // confirmed, claimed win) flip ownership at the current phase. Cosmetic —
+  // no rules effects, owners array runs parallel to campaign.phases.
+  if (battle.contesting_node_id) {
+    await applySectorMapEffects(client, battle);
+  }
+}
+
+interface SectorMapRow { sector_map: any | null }
+
+async function applySectorMapEffects(client: PoolClient, battle: Battle): Promise<void> {
+  const { rows } = await client.query<SectorMapRow>(
+    'SELECT sector_map FROM campaigns WHERE id = $1', [battle.campaign_id],
+  );
+  const map = rows[0]?.sector_map;
+  if (!map || !Array.isArray(map.nodes)) return;
+  const node = map.nodes.find((n: any) => n.id === battle.contesting_node_id);
+  if (!node) return;
+
+  const phase = Math.max(1, battle.campaign_phase | 0);
+  if (!Array.isArray(node.owners)) node.owners = [];
+  // Pad owners up to this phase, carrying the most recent prior owner forward.
+  while (node.owners.length < phase) {
+    node.owners.push(node.owners[node.owners.length - 1] ?? 'NEUTRAL');
+  }
+  if (!Array.isArray(node.history)) node.history = [];
+  if (!Array.isArray(node.battles)) node.battles = [];
+
+  const winnerId = battle.outcome === 'Attacker Wins'
+    ? battle.attacker_force_id
+    : battle.outcome === 'Defender Wins'
+      ? battle.defender_force_id
+      : null;
+  const engagement = battle.mission_name?.trim() || 'Engagement';
+
+  if (winnerId && battle.claim_node_on_win) {
+    const { rows: fRows } = await client.query<{ name: string }>(
+      'SELECT name FROM crusade_forces WHERE id = $1', [winnerId],
+    );
+    const winnerName = fRows[0]?.name ?? 'an unknown force';
+    node.owners[phase - 1] = winnerId;
+    node.history.push({ phase, event: `${engagement} — taken by ${winnerName}` });
+  } else {
+    node.history.push({ phase, event: `${engagement} — contested` });
+  }
+  if (!node.battles.includes(battle.id)) node.battles.push(battle.id);
+
+  await client.query(
+    'UPDATE campaigns SET sector_map = $1::jsonb, updated_at = now() WHERE id = $2',
+    [JSON.stringify(map), battle.campaign_id],
+  );
 }

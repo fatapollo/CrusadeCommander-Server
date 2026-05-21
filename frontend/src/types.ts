@@ -28,6 +28,38 @@ export interface Campaign {
   unit_count?: number;
   battle_count?: number;
   power_rating?: number;
+  phases?: CampaignPhase[] | null;
+  sector_map?: SectorMap | null;
+}
+
+export interface CampaignPhase {
+  idx: number;
+  label: string;
+  date: string | null;
+  pending?: boolean;
+}
+
+export type NodeType = 'HIVE' | 'FORGE' | 'PORT' | 'RELIC' | 'STRONG' | 'WILD' | 'OBJ';
+export type NodeOwner = string | 'NEUTRAL' | 'CONTESTED';
+
+export interface SectorNode {
+  id: string;
+  name: string;
+  type: NodeType;
+  pos: { x: number; y: number };
+  value: 1 | 2 | 3 | 4 | 5;
+  traits: string[];
+  owners: NodeOwner[];
+  isObjective: boolean;
+  history: { phase: number; event: string }[];
+  battles: string[];
+}
+
+export type SectorEdge = [string, string];
+
+export interface SectorMap {
+  nodes: SectorNode[];
+  edges: SectorEdge[];
 }
 
 export interface CrusadeForce {
@@ -71,6 +103,8 @@ export interface Battle {
   attacker_force_id: UUID; defender_force_id: UUID; outcome: BattleOutcome;
   attacker_score: number; defender_score: number;
   deployment: string; duration_turns: number; opposing_commander: string;
+  contesting_node_id?: string | null;
+  claim_node_on_win?: boolean;
   notes: string; campaign_phase: number; occurred_at: string;
   status: BattleStatus;
   submitted_by_user_id: UUID | null;
