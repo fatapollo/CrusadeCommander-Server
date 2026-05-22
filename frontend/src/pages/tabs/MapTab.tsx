@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Battle, Campaign, CampaignPhase, CampaignRole, CrusadeForce, NodeOwner, SectorMap } from '../../types';
 import {
-  MapCanvas, MapLegend, PhaseScrubber, NodeDossier, ownerAtPhase, ownerColor, ownerLabel,
+  MapCanvas, MapLegend, PhaseScrubber, NodeDossier, MapMobile,
+  ownerAtPhase, ownerColor, ownerLabel,
 } from '../../components/map';
+import { useIsNarrow } from '../../hooks/useIsNarrow';
 import { SigilHazard, SigilReticle, FACTION_CRESTS } from '../../components/sigils';
 import { Button } from '../../components/ui';
 
@@ -24,9 +26,22 @@ export default function MapTab({ campaign, forces, battles, role, campaignId }: 
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const isAdmin = role === 'owner' || role === 'admin';
+  const isNarrow = useIsNarrow();
 
   if (!map || !map.nodes || map.nodes.length === 0) {
     return <MapEmpty isAdmin={isAdmin} campaignId={campaignId} />;
+  }
+
+  if (isNarrow) {
+    return (
+      <MapMobile
+        map={map}
+        forces={forces}
+        phases={phases.length > 0 ? phases : [{ idx: 1, label: campaign.phase_label, date: null }]}
+        currentPhase={campaign.current_phase}
+        battles={battles}
+      />
+    );
   }
 
   return (

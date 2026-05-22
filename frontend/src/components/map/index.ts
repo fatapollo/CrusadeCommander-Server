@@ -11,3 +11,5 @@ export { MapLegend } from './MapLegend';
 export type { MapLegendProps } from './MapLegend';
 export { NodeDossier } from './NodeDossier';
 export type { NodeDossierProps } from './NodeDossier';
+export { MapMobile } from './MapMobile';
+export type { MapMobileProps } from './MapMobile';

@@ -10,7 +10,8 @@ import { NodeToken } from '../components/map/NodeToken';
 import {
   MAP_W, MAP_H, NODE_TYPE, ownerAtPhase, ownerColor, ownerLabel,
 } from '../components/map/utils';
-import { crestFor, SigilHazard } from '../components/sigils';
+import { crestFor, SigilHazard, SigilReticle } from '../components/sigils';
+import { useIsNarrow } from '../hooks/useIsNarrow';
 import type {
   CrusadeForce, NodeOwner, NodeType, SectorEdge, SectorMap, SectorNode,
 } from '../types';
@@ -33,6 +34,7 @@ const NODE_TYPE_KEYS = Object.keys(NODE_TYPE) as NodeType[];
 export default function MapBuilderPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
+  const isNarrow = useIsNarrow();
 
   const campaignQ = useQuery({
     queryKey: ['campaign', campaignId],
@@ -72,6 +74,14 @@ export default function MapBuilderPage() {
             </Button>
           }
         />
+      </BunkPage>
+    );
+  }
+
+  if (isNarrow) {
+    return (
+      <BunkPage active="01">
+        <BuilderDesktopOnly campaignId={c.id} />
       </BunkPage>
     );
   }
@@ -701,6 +711,36 @@ function Hint({ glyph, children }: { glyph: string; children: React.ReactNode })
     <div className="flex items-center gap-2">
       <span className="text-bunk-rust w-4 inline-block">{glyph}</span>
       <span>{children}</span>
+    </div>
+  );
+}
+
+// ─── Mobile gate ────────────────────────────────────────────────────────────
+
+function BuilderDesktopOnly({ campaignId }: { campaignId: string }) {
+  const navigate = useNavigate();
+  return (
+    <div className="relative overflow-hidden border border-bunk-line bg-bunk-surface py-12">
+      <div className="absolute -left-10 -top-10 opacity-[0.05]"><SigilReticle size={220} color={RUST} /></div>
+      <div className="relative max-w-[420px] mx-auto text-center px-5">
+        <div className="flex justify-center mb-4"><SigilHazard width={64} height={10} color={RUST} bg="#161310" /></div>
+        <div className="font-mono text-[10px] tracking-mono-lg text-bunk-rust mb-3 uppercase">
+          ⚠ Desktop Required
+        </div>
+        <div className="font-display text-4xl font-bold uppercase tracking-tight text-bunk-bone leading-[0.95]">
+          Cartography on a<br />
+          <span className="text-bunk-rust">larger plane</span>
+        </div>
+        <p className="font-narrative italic text-sm text-bunk-boneDim mt-4 leading-relaxed">
+          The sector builder needs precision input — placing nodes, drawing supply lines, and snapping
+          to grid. Open this campaign on a desktop browser to chart the sector.
+        </p>
+        <div className="mt-6">
+          <Button onClick={() => navigate(`/campaigns/${campaignId}?tab=map`)}>
+            ‹ Back to Map
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
