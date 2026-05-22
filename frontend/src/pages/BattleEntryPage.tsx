@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { battlesApi, forcesApi, unitsApi } from '../api/endpoints';
+import { battlesApi, campaignsApi, forcesApi, unitsApi } from '../api/endpoints';
 import type { UnitBattleInput } from '../api/endpoints';
 import type { BattleOutcome, BattleSize, Unit } from '../types';
 import { ApiError } from '../api/client';
 import { BunkPage, BunkFormSection } from '../components/bunker';
 import { Button, Field, Spinner } from '../components/ui';
+import { MapCanvas, NODE_TYPE, ownerAtPhase, ownerColor, ownerLabel } from '../components/map';
 
 const BATTLE_SIZES: BattleSize[] = ['Incursion', 'Strike Force', 'Onslaught'];
 const SCARS = ['Crippling Damage', 'Battle-weary', 'Fatigued', 'Disgraced', 'Mark of Shame', 'Deep Scars'];
@@ -37,6 +38,11 @@ export default function BattleEntryPage() {
     queryFn: () => forcesApi.list(campaignId!),
     enabled: !!campaignId,
   });
+  const campaignQ = useQuery({
+    queryKey: ['campaign', campaignId],
+    queryFn: () => campaignsApi.get(campaignId!),
+    enabled: !!campaignId,
+  });
 
   const [battleSize, setBattleSize] = useState<BattleSize>('Strike Force');
   const [mission, setMission] = useState('');
@@ -49,9 +55,21 @@ export default function BattleEntryPage() {
   const [outcomeOverride, setOutcomeOverride] = useState<BattleOutcome | null>(null);
   const [opposingCommander, setOpposingCommander] = useState('');
   const [notes, setNotes] = useState('');
+  const [contestingNodeId, setContestingNodeId] = useState<string | null>(null);
+  const [claimOnWin, setClaimOnWin] = useState(false);
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // If the picked node was removed/renamed since the draft, drop the stale id.
+  useEffect(() => {
+    if (!contestingNodeId || !campaignQ.data) return;
+    const m = campaignQ.data.campaign.sector_map;
+    if (m && !m.nodes.some(n => n.id === contestingNodeId)) {
+      setContestingNodeId(null);
+      setClaimOnWin(false);
+    }
+  }, [contestingNodeId, campaignQ.data]);
 
   // Restore draft.
   useEffect(() => {
@@ -64,6 +82,8 @@ export default function BattleEntryPage() {
         setAttackerScore(d.attackerScore ?? 0); setDefenderScore(d.defenderScore ?? 0);
         setOutcomeOverride(d.outcomeOverride ?? null);
         setOpposingCommander(d.opposingCommander ?? ''); setNotes(d.notes ?? '');
+        setContestingNodeId(d.contestingNodeId ?? null);
+        setClaimOnWin(!!d.claimOnWin);
         setRows(d.rows ?? {});
       }
     } catch { /* ignore */ }
@@ -74,12 +94,14 @@ export default function BattleEntryPage() {
     const t = setTimeout(() => {
       localStorage.setItem(draftKey, JSON.stringify({
         battleSize, mission, deployment, duration, attackerId, defenderId,
-        attackerScore, defenderScore, outcomeOverride, opposingCommander, notes, rows,
+        attackerScore, defenderScore, outcomeOverride, opposingCommander, notes,
+        contestingNodeId, claimOnWin, rows,
       }));
     }, 400);
     return () => clearTimeout(t);
   }, [draftKey, battleSize, mission, deployment, duration, attackerId, defenderId,
-    attackerScore, defenderScore, outcomeOverride, opposingCommander, notes, rows]);
+    attackerScore, defenderScore, outcomeOverride, opposingCommander, notes,
+    contestingNodeId, claimOnWin, rows]);
 
   const attackerUnitsQ = useQuery({
     queryKey: ['campaign', campaignId, 'force', attackerId, 'units'],
@@ -100,6 +122,14 @@ export default function BattleEntryPage() {
   if (forcesQ.isLoading) return <BunkPage active="03"><Spinner /></BunkPage>;
   const forces = (forcesQ.data?.forces ?? []).filter(f => f.is_active);
   const forceName = (id: string) => forces.find(f => f.id === id)?.name ?? '—';
+
+  const campaign = campaignQ.data?.campaign;
+  const sectorMap = campaign?.sector_map ?? null;
+  const sectorPhase = campaign?.current_phase ?? 1;
+  const contestingNode = sectorMap?.nodes.find(n => n.id === contestingNodeId) ?? null;
+  const winnerForceId = outcome === 'Attacker Wins' ? attackerId
+    : outcome === 'Defender Wins' ? defenderId : null;
+  const claimEligible = !!contestingNodeId && outcome !== 'Draw' && !!winnerForceId;
 
   const row = (id: string) => rows[id] ?? emptyRow();
   const setRow = (id: string, patch: Partial<RowState>) =>
@@ -144,6 +174,8 @@ export default function BattleEntryPage() {
         attacker_force_id: attackerId, defender_force_id: defenderId,
         outcome, attacker_score: attackerScore, defender_score: defenderScore,
         notes, attacker_units: aSel, defender_units: dSel,
+        contesting_node_id: contestingNodeId,
+        claim_node_on_win: !!contestingNodeId && claimOnWin,
       });
       localStorage.removeItem(draftKey);
       navigate(`/campaigns/${campaignId}?tab=battles`);
@@ -285,6 +317,85 @@ export default function BattleEntryPage() {
             <div className="mt-3">
               <Field label="Opposing Commander (optional)"><input value={opposingCommander} onChange={e => setOpposingCommander(e.target.value)} /></Field>
             </div>
+
+            {sectorMap && sectorMap.nodes.length > 0 && (
+              <div
+                className="mt-5 p-4 bg-bunk-ink relative"
+                style={{ border: '2px solid #f4c14b', borderLeftWidth: 4 }}
+              >
+                <div
+                  className="absolute -top-2.5 left-3 px-1.5 font-mono text-[9px] tracking-mono-lg font-bold uppercase"
+                  style={{ background: '#f4c14b', color: '#06040a' }}
+                >
+                  ◆ SECTOR · NEW
+                </div>
+                <div className="font-mono text-[9px] tracking-mono-lg text-bunk-rust mb-1.5 uppercase">Contesting Node</div>
+                <select
+                  value={contestingNodeId ?? ''}
+                  onChange={(e) => setContestingNodeId(e.target.value || null)}
+                  className="w-full"
+                >
+                  <option value="">— not contesting a node —</option>
+                  {sectorMap.nodes.map(n => {
+                    const meta = NODE_TYPE[n.type];
+                    const owner = ownerAtPhase(n, sectorPhase);
+                    return (
+                      <option key={n.id} value={n.id}>
+                        {meta.glyph} {n.name} · held by {ownerLabel(owner, forces)}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {contestingNode && (() => {
+                  const ownerNow = ownerAtPhase(contestingNode, sectorPhase);
+                  const c = ownerColor(ownerNow, forces);
+                  return (
+                    <div className="mt-3 flex items-center gap-2.5">
+                      <span className="w-3 h-3 flex-shrink-0" style={{ background: c }} />
+                      <span className="font-display text-[13px] font-bold uppercase tracking-wide text-bunk-bone">
+                        {contestingNode.name}
+                      </span>
+                      <span className="font-mono text-[10px] tracking-mono-md uppercase" style={{ color: c }}>
+                        held by {ownerLabel(ownerNow, forces)}
+                      </span>
+                      {contestingNode.isObjective && (
+                        <span className="ml-auto font-mono text-[9px] tracking-mono-md text-bunk-warning uppercase">◆ OBJECTIVE</span>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <label
+                  className={`mt-3 flex items-center gap-3 px-3 py-2.5 border ${
+                    claimEligible ? 'border-bunk-warning bg-bunk-warning/10 cursor-pointer' : 'border-bunk-line opacity-50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={claimOnWin && claimEligible}
+                    disabled={!claimEligible}
+                    onChange={(e) => setClaimOnWin(e.target.checked)}
+                  />
+                  <span className="font-display text-[12px] font-bold uppercase tracking-wide text-bunk-bone">
+                    Claim node if I win
+                  </span>
+                  <span className="ml-auto font-mono text-[9px] tracking-mono-md text-bunk-boneDim uppercase">
+                    {!contestingNodeId
+                      ? 'pick a node first'
+                      : outcome === 'Draw'
+                        ? 'no winner on draw'
+                        : winnerForceId
+                          ? `flips to ${forceName(winnerForceId)} on confirm`
+                          : 'select both forces'}
+                  </span>
+                </label>
+                <p className="mt-2 font-narrative italic text-[12px] text-bunk-boneDim leading-snug">
+                  Tagging the battle records the engagement on this node. The node only flips owner on a
+                  confirmed win with this toggle on — otherwise it's logged as contested.
+                </p>
+              </div>
+            )}
           </BunkFormSection>
 
           <BunkFormSection num="03" title="Units Deployed" count={`${aSel.length + dSel.length} selected`}>
@@ -318,8 +429,43 @@ export default function BattleEntryPage() {
               <div>RESULT <span className="float-right text-bunk-green">{outcome}</span></div>
               <div>UNITS <span className="float-right text-bunk-bone">{aSel.length + dSel.length}</span></div>
               <div>SIZE <span className="float-right text-bunk-bone">{battleSize}</span></div>
+              {contestingNode && (
+                <div>
+                  NODE <span className="float-right text-bunk-bone uppercase">{contestingNode.name}</span>
+                </div>
+              )}
+              {contestingNode && claimOnWin && claimEligible && (
+                <div className="text-bunk-warning">
+                  CLAIM <span className="float-right">on confirmed win</span>
+                </div>
+              )}
             </div>
           </div>
+
+          {sectorMap && sectorMap.nodes.length > 0 && (
+            <div className="bg-bunk-surfaceLo border border-bunk-line">
+              <div className="px-4 py-2 border-b border-dashed border-bunk-line font-mono text-[9px] tracking-mono-lg text-bunk-rust uppercase flex items-center">
+                // SECTOR
+                {contestingNode && <span className="ml-auto text-bunk-warning">◆ TARGET LOCKED</span>}
+              </div>
+              <div className="p-2">
+                <MapCanvas
+                  map={sectorMap}
+                  forces={forces}
+                  phase={sectorPhase}
+                  zoom={contestingNode ? 1 : 0}
+                  selectedId={contestingNodeId}
+                  onSelect={(id) => setContestingNodeId(id === contestingNodeId ? null : id)}
+                  height={200}
+                />
+              </div>
+              <p className="px-4 pb-3 font-narrative italic text-[12px] text-bunk-boneDim leading-snug">
+                {contestingNode
+                  ? `Tap another world to retarget, or tap "${contestingNode.name}" again to clear.`
+                  : 'Tap a world here to tag the battle, or use the picker above.'}
+              </p>
+            </div>
+          )}
           <div className="bg-bunk-surfaceLo border border-bunk-line">
             <div className="px-4 py-2 border-b border-dashed border-bunk-line font-mono text-[9px] tracking-mono-lg text-bunk-rust">// VALIDATION</div>
             <div className="p-4 font-mono text-[11px] space-y-1.5">
