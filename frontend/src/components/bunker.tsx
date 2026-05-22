@@ -42,6 +42,7 @@ const CAMPAIGN_TABS = [
   { key: 'forces', n: '02', label: 'FORCES' },
   { key: 'battles', n: '03', label: 'BATTLES' },
   { key: 'members', n: '04', label: 'MEMBERS' },
+  { key: 'map', n: '05', label: 'MAP' },
 ];
 
 export function BunkNav({ active }: { active?: string } = {}) {

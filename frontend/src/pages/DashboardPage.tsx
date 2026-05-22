@@ -10,10 +10,11 @@ import OverviewTab from './tabs/OverviewTab';
 import ForcesTab from './tabs/ForcesTab';
 import BattlesTab from './tabs/BattlesTab';
 import MembersTab from './tabs/MembersTab';
+import MapTab from './tabs/MapTab';
 import { useAuth } from '../auth/AuthContext';
 
-type TabKey = 'overview' | 'forces' | 'battles' | 'members';
-const TAB_KEYS: TabKey[] = ['overview', 'forces', 'battles', 'members'];
+type TabKey = 'overview' | 'forces' | 'battles' | 'members' | 'map';
+const TAB_KEYS: TabKey[] = ['overview', 'forces', 'battles', 'members', 'map'];
 
 export default function DashboardPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -99,6 +100,7 @@ export default function DashboardPage() {
           currentUserId={user!.id} currentRole={role} campaignState={c.state} />
       )}
       {tab === 'members' && <MembersTab campaignId={c.id} currentRole={role} currentUserId={user!.id} />}
+      {tab === 'map' && <MapTab campaign={c} forces={forces} role={role} campaignId={c.id} />}
     </BunkPage>
   );
 }
