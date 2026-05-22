@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Battle, Campaign, CampaignPhase, CampaignRole, CrusadeForce, NodeOwner, SectorMap } from '../../types';
 import {
   MapCanvas, MapLegend, PhaseScrubber, NodeDossier, ownerAtPhase, ownerColor, ownerLabel,
@@ -40,13 +41,14 @@ export default function MapTab({ campaign, forces, battles, role, campaignId }: 
       selectedId={selectedId}
       setSelectedId={setSelectedId}
       campaignId={campaignId}
+      isAdmin={isAdmin}
     />
   );
 }
 
 function MapBody({
   map, forces, battles, phases, viewingPhase, setViewingPhase, currentPhase,
-  selectedId, setSelectedId, campaignId,
+  selectedId, setSelectedId, campaignId, isAdmin,
 }: {
   map: SectorMap;
   forces: CrusadeForce[];
@@ -58,6 +60,7 @@ function MapBody({
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   campaignId: string;
+  isAdmin: boolean;
 }) {
   const selectedNode = selectedId ? map.nodes.find(n => n.id === selectedId) ?? null : null;
   // Holdings at the viewing phase, grouped by owner.
@@ -90,6 +93,16 @@ function MapBody({
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
       <div className="grid gap-3">
+        {isAdmin && (
+          <div className="flex items-center justify-end">
+            <Link
+              to={`/campaigns/${campaignId}/map/builder`}
+              className="px-3 py-1.5 border border-bunk-line bg-bunk-ink hover:border-bunk-rust font-display text-[11px] tracking-mono-md font-bold uppercase text-bunk-bone"
+            >
+              ✎ EDIT SECTOR
+            </Link>
+          </div>
+        )}
         <MapCanvas
           map={map}
           forces={forces}
@@ -177,7 +190,12 @@ function MapEmpty({ isAdmin, campaignId }: { isAdmin: boolean; campaignId: strin
         </p>
         {isAdmin && (
           <div className="flex flex-wrap gap-3 justify-center mt-7">
-            <Button disabled title="Map Builder ships in slice 5">＋ Build Sector Map</Button>
+            <Link
+              to={`/campaigns/${campaignId}/map/builder`}
+              className="px-5 py-2.5 bg-bunk-rust text-bunk-ink font-display text-sm tracking-mono-md font-bold uppercase hover:brightness-110"
+            >
+              ＋ Build Sector Map
+            </Link>
             <Button variant="secondary" disabled>Use Template ▾</Button>
           </div>
         )}

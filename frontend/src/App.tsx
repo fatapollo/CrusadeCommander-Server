@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import ForceDetailPage from './pages/ForceDetailPage';
 import UnitDetailPage from './pages/UnitDetailPage';
 import BattleEntryPage from './pages/BattleEntryPage';
+import MapBuilderPage from './pages/MapBuilderPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import AdminPage from './pages/AdminPage';
 import { Spinner } from './components/ui';
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/campaigns/new" element={<Protected><WizardPage /></Protected>} />
           <Route path="/campaigns/:campaignId" element={<Protected><DashboardPage /></Protected>} />
           <Route path="/campaigns/:campaignId/battles/new" element={<Protected><BattleEntryPage /></Protected>} />
+          <Route path="/campaigns/:campaignId/map/builder" element={<Protected><MapBuilderPage /></Protected>} />
           <Route path="/campaigns/:campaignId/forces/:forceId" element={<Protected><ForceDetailPage /></Protected>} />
           <Route path="/campaigns/:campaignId/units/:unitId" element={<Protected><UnitDetailPage /></Protected>} />
           <Route path="/admin" element={<Protected><AdminPage /></Protected>} />
