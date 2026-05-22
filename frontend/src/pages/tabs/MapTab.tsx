@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
-import type { Campaign, CampaignRole, CrusadeForce, NodeOwner, SectorMap } from '../../types';
+import type { Battle, Campaign, CampaignPhase, CampaignRole, CrusadeForce, NodeOwner, SectorMap } from '../../types';
 import {
-  MapCanvas, MapLegend, PhaseScrubber, ownerAtPhase, ownerColor, ownerLabel,
+  MapCanvas, MapLegend, PhaseScrubber, NodeDossier, ownerAtPhase, ownerColor, ownerLabel,
 } from '../../components/map';
 import { SigilHazard, SigilReticle, FACTION_CRESTS } from '../../components/sigils';
 import { Button } from '../../components/ui';
 
 const RUST = '#e2683c';
 
-export default function MapTab({ campaign, forces, role, campaignId }: {
+export default function MapTab({ campaign, forces, battles, role, campaignId }: {
   campaign: Campaign;
   forces: CrusadeForce[];
+  battles: Battle[];
   role: CampaignRole;
   campaignId: string;
 }) {
@@ -31,29 +32,34 @@ export default function MapTab({ campaign, forces, role, campaignId }: {
     <MapBody
       map={map}
       forces={forces}
+      battles={battles}
       phases={phases.length > 0 ? phases : [{ idx: 1, label: campaign.phase_label, date: null }]}
       viewingPhase={viewingPhase}
       setViewingPhase={setViewingPhase}
       currentPhase={campaign.current_phase}
       selectedId={selectedId}
       setSelectedId={setSelectedId}
+      campaignId={campaignId}
     />
   );
 }
 
 function MapBody({
-  map, forces, phases, viewingPhase, setViewingPhase, currentPhase,
-  selectedId, setSelectedId,
+  map, forces, battles, phases, viewingPhase, setViewingPhase, currentPhase,
+  selectedId, setSelectedId, campaignId,
 }: {
   map: SectorMap;
   forces: CrusadeForce[];
-  phases: { idx: number; label: string; date: string | null }[];
+  battles: Battle[];
+  phases: CampaignPhase[];
   viewingPhase: number;
   setViewingPhase: (n: number) => void;
   currentPhase: number;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
+  campaignId: string;
 }) {
+  const selectedNode = selectedId ? map.nodes.find(n => n.id === selectedId) ?? null : null;
   // Holdings at the viewing phase, grouped by owner.
   const holdings = useMemo(() => {
     const counts = new Map<NodeOwner, number>();
@@ -102,6 +108,17 @@ function MapBody({
       </div>
 
       <div className="grid gap-4">
+        {selectedNode ? (
+          <NodeDossier
+            node={selectedNode}
+            forces={forces}
+            phases={phases}
+            currentPhase={currentPhase}
+            battles={battles}
+            campaignId={campaignId}
+            onClose={() => setSelectedId(null)}
+          />
+        ) : null}
         <MapLegend forces={forces} />
 
         <div className="bg-bunk-surface border border-bunk-line">

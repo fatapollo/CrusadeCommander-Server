@@ -100,7 +100,7 @@ export default function DashboardPage() {
           currentUserId={user!.id} currentRole={role} campaignState={c.state} />
       )}
       {tab === 'members' && <MembersTab campaignId={c.id} currentRole={role} currentUserId={user!.id} />}
-      {tab === 'map' && <MapTab campaign={c} forces={forces} role={role} campaignId={c.id} />}
+      {tab === 'map' && <MapTab campaign={c} forces={forces} battles={battles} role={role} campaignId={c.id} />}
     </BunkPage>
   );
 }

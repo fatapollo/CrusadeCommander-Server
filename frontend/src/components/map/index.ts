@@ -9,3 +9,5 @@ export { PhaseScrubber } from './PhaseScrubber';
 export type { PhaseScrubberProps } from './PhaseScrubber';
 export { MapLegend } from './MapLegend';
 export type { MapLegendProps } from './MapLegend';
+export { NodeDossier } from './NodeDossier';
+export type { NodeDossierProps } from './NodeDossier';
