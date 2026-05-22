@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { battlesApi } from '../../api/endpoints';
 import type { Battle, CampaignRole, CrusadeForce } from '../../types';
@@ -26,6 +26,10 @@ export default function BattlesTab({ campaignId, forces, battles, currentUserId,
   const pending = battles.filter(b => b.status === 'pending' || b.status === 'disputed');
   const confirmed = battles.filter(b => b.status === 'confirmed');
 
+  // Deep-link target — e.g. /campaigns/:id?tab=battles#battle-<id> from NodeDossier.
+  const { hash } = useLocation();
+  const deepLinkId = hash.startsWith('#battle-') ? hash.slice('#battle-'.length) : null;
+
   return (
     <>
       <div className="flex justify-between items-center mb-4">
@@ -38,7 +42,7 @@ export default function BattlesTab({ campaignId, forces, battles, currentUserId,
       {pending.length > 0 && (
         <div className="space-y-2 mb-6">
           <h3 className="text-xs font-semibold tracking-wider text-ink-fade uppercase">Awaiting Confirmation</h3>
-          {pending.map(b => <BattleRow key={b.id} battle={b} forces={forces} campaignId={campaignId} currentUserId={currentUserId} currentRole={currentRole} />)}
+          {pending.map(b => <BattleRow key={b.id} battle={b} forces={forces} campaignId={campaignId} currentUserId={currentUserId} currentRole={currentRole} highlight={deepLinkId === b.id} />)}
         </div>
       )}
 
@@ -47,17 +51,23 @@ export default function BattlesTab({ campaignId, forces, battles, currentUserId,
       ) : confirmed.length > 0 ? (
         <div className="space-y-2 mt-4">
           {pending.length > 0 && <h3 className="text-xs font-semibold tracking-wider text-ink-fade uppercase">Confirmed</h3>}
-          {confirmed.map(b => <BattleRow key={b.id} battle={b} forces={forces} campaignId={campaignId} currentUserId={currentUserId} currentRole={currentRole} />)}
+          {confirmed.map(b => <BattleRow key={b.id} battle={b} forces={forces} campaignId={campaignId} currentUserId={currentUserId} currentRole={currentRole} highlight={deepLinkId === b.id} />)}
         </div>
       ) : null}
     </>
   );
 }
 
-function BattleRow({ battle, forces, campaignId, currentUserId, currentRole }: {
+function BattleRow({ battle, forces, campaignId, currentUserId, currentRole, highlight }: {
   battle: Battle; forces: CrusadeForce[]; campaignId: string;
   currentUserId: string; currentRole: CampaignRole;
+  highlight?: boolean;
 }) {
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!highlight) return;
+    rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlight]);
   const qc = useQueryClient();
   const att = forces.find(f => f.id === battle.attacker_force_id);
   const def = forces.find(f => f.id === battle.defender_force_id);
@@ -93,7 +103,10 @@ function BattleRow({ battle, forces, campaignId, currentUserId, currentRole }: {
     : battle.status === 'disputed' ? 'danger' : 'dim';
 
   return (
-    <Card className={`p-4 ${battle.status === 'pending' ? 'border-warning/30' : battle.status === 'disputed' ? 'border-danger/40' : ''}`}>
+    <Card
+      ref={rowRef}
+      id={`battle-${battle.id}`}
+      className={`p-4 scroll-mt-24 transition-shadow ${battle.status === 'pending' ? 'border-warning/30' : battle.status === 'disputed' ? 'border-danger/40' : ''} ${highlight ? 'ring-2 ring-bunk-rust shadow-[0_0_0_4px_rgba(226,104,60,0.15)]' : ''}`}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-sm flex-wrap">

@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
+import { ButtonHTMLAttributes, forwardRef, HTMLAttributes, ReactNode } from 'react';
 
 // Shared primitives — restyled to the Bunker Command visual direction.
 // Square edges, Oswald display on actions, rust accent, mono labels.
@@ -17,13 +17,15 @@ export function Button({
   return <button className={`${base} ${styles} ${className}`} {...rest}>{children}</button>;
 }
 
-export function Card({ className = '', children, ...rest }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={`bg-bunk-surface border border-bunk-line ${className}`} {...rest}>
-      {children}
-    </div>
-  );
-}
+export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  function Card({ className = '', children, ...rest }, ref) {
+    return (
+      <div ref={ref} className={`bg-bunk-surface border border-bunk-line ${className}`} {...rest}>
+        {children}
+      </div>
+    );
+  }
+);
 
 export function Badge({
   children,
