@@ -141,7 +141,10 @@ function Builder({
 
   // Cursor reporting + drag handling -----------------------------------------
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const dragRef = useRef<{
+    id: string; dx: number; dy: number;
+    pointerId: number; captureEl: Element | null;
+  } | null>(null);
 
   const toLogical = (e: { clientX: number; clientY: number }): { x: number; y: number } | null => {
     const el = containerRef.current;
@@ -171,11 +174,22 @@ function Builder({
     }
   };
 
-  const onCanvasPointerUp = () => {
-    if (dragRef.current && containerRef.current) {
-      containerRef.current.releasePointerCapture?.(0);
+  const endDrag = () => {
+    const drag = dragRef.current;
+    if (drag) {
+      const el = drag.captureEl as (Element & { releasePointerCapture?: (id: number) => void }) | null;
+      try { el?.releasePointerCapture?.(drag.pointerId); } catch { /* already released */ }
     }
     dragRef.current = null;
+  };
+
+  const onCanvasPointerUp = () => {
+    if (dragRef.current) {
+      endDrag();
+      // Drop back to SELECT so subsequent clicks don't restart a drag.
+      // Selection stays so the Inspector keeps showing the moved node.
+      setTool('select');
+    }
   };
 
   const onCanvasClick = (e: React.MouseEvent) => {
@@ -240,9 +254,15 @@ function Builder({
     const p = toLogical(e);
     const node = state.map.nodes.find(n => n.id === id);
     if (!p || !node) return;
-    dragRef.current = { id, dx: p.x - node.pos.x, dy: p.y - node.pos.y };
+    // Capture on the element that received the pointerdown so subsequent
+    // pointermove/up route here even if the cursor leaves the canvas.
+    const target = e.currentTarget as Element & { setPointerCapture?: (id: number) => void };
+    try { target.setPointerCapture?.(e.pointerId); } catch { /* ignored */ }
+    dragRef.current = {
+      id, dx: p.x - node.pos.x, dy: p.y - node.pos.y,
+      pointerId: e.pointerId, captureEl: target,
+    };
     setState(s => ({ ...s, selectedId: id }));
-    containerRef.current?.setPointerCapture?.(e.pointerId);
   };
 
   // Validation ---------------------------------------------------------------
