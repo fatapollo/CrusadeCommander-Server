@@ -147,6 +147,7 @@ const nodeSchema = z.object({
 const sectorMapSchema = z.object({
   nodes: z.array(nodeSchema).max(200),
   edges: z.array(z.tuple([z.string(), z.string()])).max(400),
+  backdrop: z.string().max(40).optional(),
 });
 
 router.put('/:campaignId/map', loadCampaign, requireAdmin, asyncHandler(async (req, res) => {

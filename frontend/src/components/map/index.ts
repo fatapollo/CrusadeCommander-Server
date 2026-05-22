@@ -13,3 +13,5 @@ export { NodeDossier } from './NodeDossier';
 export type { NodeDossierProps } from './NodeDossier';
 export { MapMobile } from './MapMobile';
 export type { MapMobileProps } from './MapMobile';
+export { SECTOR_BACKDROPS, DEFAULT_BACKDROP_ID, backdropById } from './sectorBackdrops';
+export type { SectorBackdrop } from './sectorBackdrops';

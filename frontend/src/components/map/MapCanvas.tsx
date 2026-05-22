@@ -2,6 +2,7 @@ import type { CrusadeForce, SectorMap } from '../../types';
 import { crestFor } from '../sigils';
 import { EdgeLine } from './EdgeLine';
 import { NodeToken } from './NodeToken';
+import { backdropById } from './sectorBackdrops';
 import { MAP_W, MAP_H, ownerAtPhase, ownerColor } from './utils';
 
 export interface MapCanvasProps {
@@ -26,15 +27,13 @@ export function MapCanvas({
 }: MapCanvasProps) {
   const nodeById = (id: string) => map.nodes.find(n => n.id === id);
 
+  const backdrop = backdropById(map.backdrop);
   return (
     <div
-      className="relative w-full bg-bunk-ink border border-bunk-line overflow-hidden"
+      className="relative w-full border border-bunk-line overflow-hidden"
       style={{
         height,
-        backgroundImage: builder
-          ? 'linear-gradient(rgba(226,104,60,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(226,104,60,0.07) 1px, transparent 1px)'
-          : 'linear-gradient(rgba(226,104,60,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(226,104,60,0.04) 1px, transparent 1px)',
-        backgroundSize: builder ? '5% 5%' : '10% 10%',
+        ...backdrop.canvas,
       }}
     >
       {/* Sector coordinate label */}

@@ -1,5 +1,6 @@
 import type { Battle, CampaignPhase, CrusadeForce, NodeOwner, SectorMap } from '../../types';
 import { MAP_W, MAP_H, NODE_TYPE, ownerAtPhase, ownerColor, ownerLabel } from './utils';
+import { backdropById } from './sectorBackdrops';
 
 export interface MapMobileProps {
   map: SectorMap;
@@ -71,8 +72,8 @@ export function MapMobile({ map, forces, phases, currentPhase, battles }: MapMob
       <div className="bg-bunk-surface border border-bunk-line p-3">
         <div className="font-mono text-[9px] tracking-mono-lg text-bunk-rust mb-2 uppercase">// Sector · Static View</div>
         <div
-          className="w-full bg-bunk-ink border border-bunk-line relative overflow-hidden"
-          style={{ aspectRatio: `${MAP_W} / ${MAP_H}` }}
+          className="w-full border border-bunk-line relative overflow-hidden"
+          style={{ aspectRatio: `${MAP_W} / ${MAP_H}`, ...backdropById(map.backdrop).canvas }}
         >
           <svg
             viewBox={`0 0 ${MAP_W} ${MAP_H}`}

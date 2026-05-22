@@ -7,6 +7,7 @@ import { BunkPage } from '../components/bunker';
 import { Button, EmptyState, Spinner } from '../components/ui';
 import { EdgeLine } from '../components/map/EdgeLine';
 import { NodeToken } from '../components/map/NodeToken';
+import { SECTOR_BACKDROPS, backdropById } from '../components/map/sectorBackdrops';
 import {
   MAP_W, MAP_H, NODE_TYPE, ownerAtPhase, ownerColor, ownerLabel,
 } from '../components/map/utils';
@@ -349,7 +350,10 @@ function Builder({
           active={snap}
           onClick={() => setSnap(s => !s)}
         />
-        <ToolButton label="⊞ TEMPLATE ▾" disabled />
+        <BackdropPicker
+          value={state.map.backdrop}
+          onChange={(id) => mutate(m => ({ ...m, backdrop: id }))}
+        />
         <div className="flex-1" />
         <button
           onClick={() => navigate(`/campaigns/${campaignId}?tab=map`)}
@@ -390,11 +394,10 @@ function Builder({
         <div>
           <div
             ref={containerRef}
-            className="relative w-full bg-bunk-ink border border-bunk-line overflow-hidden select-none"
+            className="relative w-full border border-bunk-line overflow-hidden select-none"
             style={{
               height: 620,
-              backgroundImage: 'linear-gradient(rgba(226,104,60,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(226,104,60,0.08) 1px, transparent 1px)',
-              backgroundSize: `${(GRID_PX / MAP_W) * 100}% ${(GRID_PX / MAP_H) * 100}%`,
+              ...withBuilderGrid(backdropById(state.map.backdrop).canvas),
               cursor: cursorForTool(tool),
             }}
             onClick={onCanvasClick}
@@ -799,6 +802,30 @@ function Divider() {
   return <span className="block w-px h-5 bg-bunk-line mx-1.5" />;
 }
 
+function BackdropPicker({
+  value, onChange,
+}: {
+  value: string | undefined;
+  onChange: (id: string) => void;
+}) {
+  const current = backdropById(value);
+  return (
+    <label className="flex items-center gap-1.5 ml-1 px-2 py-1 border border-bunk-line bg-bunk-ink font-display text-[11px] tracking-mono-md font-bold uppercase text-bunk-bone">
+      <span className="text-bunk-rust">◐ BACKDROP</span>
+      <select
+        value={current.id}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-transparent border-0 outline-none font-display text-[11px] tracking-mono-md font-bold uppercase text-bunk-bone cursor-pointer"
+        title={current.flavour}
+      >
+        {SECTOR_BACKDROPS.map(b => (
+          <option key={b.id} value={b.id}>{b.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function BuilderField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -825,6 +852,25 @@ function nextNodeId(nodes: SectorNode[]): string {
   let i = nodes.length + 1;
   while (taken.has(`node-${i}`)) i++;
   return `node-${i}`;
+}
+
+// Builder canvas always shows a faint placement grid on top of the
+// chosen backdrop. Prepends two crisp 1px line layers to the backdrop's
+// existing background image stack.
+function withBuilderGrid(canvas: import('react').CSSProperties): import('react').CSSProperties {
+  const gridSize = `${(GRID_PX / MAP_W) * 100}% ${(GRID_PX / MAP_H) * 100}%`;
+  const gridLines =
+    'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),' +
+    'linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)';
+  return {
+    ...canvas,
+    backgroundImage: canvas.backgroundImage
+      ? `${gridLines}, ${canvas.backgroundImage}`
+      : gridLines,
+    backgroundSize: canvas.backgroundSize
+      ? `${gridSize}, ${gridSize}, ${canvas.backgroundSize}`
+      : `${gridSize}, ${gridSize}`,
+  };
 }
 
 function cursorForTool(t: Tool): string {

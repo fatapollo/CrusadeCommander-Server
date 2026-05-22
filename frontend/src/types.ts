@@ -60,6 +60,8 @@ export type SectorEdge = [string, string];
 export interface SectorMap {
   nodes: SectorNode[];
   edges: SectorEdge[];
+  /** Backdrop id from `components/map/sectorBackdrops.ts`. */
+  backdrop?: string;
 }
 
 export interface CrusadeForce {
